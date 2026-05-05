@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistema de gestión de pedidos">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>NRD Pedidos</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css?v=1773568749521">
+  <meta name="theme-color" content="#dc2626">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/svg+xml" href="icon-192.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  
+  <!-- Validate version: add v to URL if missing; if server has newer build, reload once to avoid stale cache -->
+  <script>
+    (function() {
+      var RELOAD_KEY = 'nrd-version-reload-ts';
+      var RELOAD_COOLDOWN_MS = 15000;
+      var lastReload = parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
+      if (Date.now() - lastReload < RELOAD_COOLDOWN_MS) return;
+
+      var link = document.querySelector('link[rel="stylesheet"][href*=".css"]');
+      var match = link && link.href && link.href.match(/[?&]v=(\d+)/);
+      var localVersion = match ? String(match[1]) : null;
+      if (!localVersion) return;
+
+      fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          var serverVersion = data && data.v != null ? String(data.v) : null;
+          if (!serverVersion) return;
+          if (serverVersion === localVersion) return;
+
+          sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+
+          var sw = ('serviceWorker' in navigator)
+            ? navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(r) { r.unregister(); });
+              })
+            : Promise.resolve();
+
+          var cacheClear = ('caches' in window)
+            ? caches.keys().then(function(names) { names.forEach(function(n) { caches.delete(n); }); })
+            : Promise.resolve();
+
+          Promise.all([sw, cacheClear]).finally(function() {
+            window.location.reload();
+          });
+        })
+        .catch(function() {});
+    })();
+  </script>
+</head>
+<body class="bg-white text-black font-sans antialiased">
+  <!-- Loading Spinner -->
+  <div id="loading-spinner" class="fixed inset-0 bg-black/20 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 flex flex-col items-center gap-4 shadow-lg">
+      <div class="w-12 h-12 border-4 border-gray-200 border-t-red-600 rounded-full animate-spin"></div>
+      <p class="text-sm text-gray-600 font-light">Cargando...</p>
+    </div>
+  </div>
+
+  <!-- Redirecting Screen -->
+  <div id="redirecting-screen" class="min-h-screen flex items-center justify-center bg-white">
+    <div class="flex flex-col items-center gap-4">
+      <div class="w-12 h-12 border-4 border-gray-200 border-t-red-600 rounded-full animate-spin"></div>
+      <p class="text-sm text-gray-600 font-light">Redirigiendo...</p>
+    </div>
+  </div>
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="min-h-screen flex items-center justify-center p-4 sm:p-6 hidden">
+    <div class="w-full max-w-sm">
+      <h1 class="text-xl sm:text-2xl font-light text-center mb-6 sm:mb-8 tracking-tight">NRD Pedidos</h1>
+      <form id="login-form" class="space-y-3 sm:space-y-4">
+        <input type="email" id="login-email" placeholder="Email" required 
+          class="w-full px-0 py-2.5 sm:py-3 border-0 border-b border-gray-300 focus:outline-none focus:border-red-600 bg-transparent text-sm sm:text-base">
+        <input type="password" id="login-password" placeholder="Contraseña" required 
+          class="w-full px-0 py-2.5 sm:py-3 border-0 border-b border-gray-300 focus:outline-none focus:border-red-600 bg-transparent text-sm sm:text-base">
+        <button type="submit" 
+          class="w-full mt-4 sm:mt-6 py-2.5 sm:py-3 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+          Iniciar Sesión
+        </button>
+      </form>
+      <div id="login-error" class="mt-3 sm:mt-4 text-center text-xs sm:text-sm text-gray-600"></div>
+    </div>
+  </div>
+
+  <!-- Main App Screen -->
+  <div id="app-screen" class="min-h-screen flex flex-col hidden">
+    <header class="bg-red-600 border-b border-red-700 px-3 sm:px-4 py-2.5 sm:py-3 flex justify-between items-center sticky top-0 z-10">
+            <div class="flex items-center gap-2 sm:gap-3">
+                <img src="icon-192.png" alt="NRD Pedidos" class="w-8 h-8 sm:w-10 sm:h-10 rounded">
+      <h1 class="text-lg sm:text-xl font-light tracking-tight text-white">NRD Pedidos</h1>
+            </div>
+      
+      <!-- Lado Derecho: Botonera -->
+      <div class="flex gap-2 items-center">
+        <!-- Botón Instalar (opcional, oculto por defecto) -->
+        <button id="install-btn" 
+          class="px-3 sm:px-4 py-1.5 sm:py-2 border border-white/30 hover:border-white text-white hover:bg-white/10 transition-colors uppercase tracking-wider text-xs font-light hidden">
+          Instalar
+        </button>
+        
+        <!-- Botón Perfil (siempre visible) -->
+        <button id="profile-btn" 
+          class="px-3 sm:px-4 py-1.5 sm:py-2 border border-white/30 hover:border-white text-white hover:bg-white/10 transition-colors uppercase tracking-wider text-xs font-light">
+          Perfil
+        </button>
+      </div>
+    </header>
+
+    <nav class="bg-white border-b border-gray-200 flex overflow-x-auto sticky top-[45px] sm:top-[53px] z-10 bg-white">
+      <button class="nav-btn flex-1 px-3 sm:px-4 py-3 sm:py-3.5 border-b-2 border-red-600 text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light" data-view="orders">Pedidos</button>
+      <button class="nav-btn flex-1 px-3 sm:px-4 py-3 sm:py-3.5 border-b-2 border-transparent text-gray-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light" data-view="clients">Clientes</button>
+      <button class="nav-btn flex-1 px-3 sm:px-4 py-3 sm:py-3.5 border-b-2 border-transparent text-gray-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light" data-view="lunch">Presupuesto Lunch</button>
+      <button class="nav-btn flex-1 px-3 sm:px-4 py-3 sm:py-3.5 border-b-2 border-transparent text-gray-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light" data-view="catalog">Catálogo</button>
+    </nav>
+
+    <main class="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto max-w-6xl mx-auto w-full">
+      <!-- Orders View -->
+      <div id="orders-view" class="view space-y-3 sm:space-y-4">
+        <div id="orders-list-view">
+        <div class="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-2 sm:gap-0 mb-2 sm:mb-3">
+          <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button id="report-orders-btn" 
+              class="w-full sm:w-auto px-4 sm:px-6 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+              Reporte
+            </button>
+            <button id="new-order-btn" 
+              class="w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+              Nuevo Pedido
+            </button>
+          </div>
+        </div>
+        
+        <!-- Search Filter -->
+        <div id="orders-search-container" class="mb-3 sm:mb-4">
+          <input type="text" id="orders-search-input" 
+            placeholder="Buscar pedidos por cliente, productos, fecha..." 
+            class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white text-sm sm:text-base rounded">
+        </div>
+        
+        <!-- Date Filter -->
+        <div id="date-filter-container" class="flex items-center justify-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+          <button id="today-date-btn" 
+            class="px-3 py-2 text-xs text-gray-500 hover:text-red-600 transition-colors">
+            Hoy
+          </button>
+          <button id="prev-date-btn" 
+            class="px-3 py-2 text-gray-600 hover:text-red-600 transition-colors text-lg sm:text-xl">
+            ‹
+          </button>
+          <div id="filter-date-display" 
+            class="px-4 py-2 text-sm sm:text-base font-light text-gray-700 min-w-[120px] text-center">
+            Todas las fechas
+          </div>
+          <button id="next-date-btn" 
+            class="px-3 py-2 text-gray-600 hover:text-red-600 transition-colors text-lg sm:text-xl">
+            ›
+          </button>
+          <button id="clear-date-filter-btn" 
+            class="px-3 py-2 text-xs text-gray-500 hover:text-red-600 transition-colors">
+            Limpiar
+          </button>
+        </div>
+        
+        <div id="orders-list-container">
+          <!-- Pedidos pendientes -->
+          <div class="mb-6" id="orders-section-pending">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-2">Pedidos pendientes</h2>
+            <div id="orders-list-pending" class="space-y-2 sm:space-y-3"></div>
+          </div>
+          <!-- Pedidos programados (retiro en local, más de 30 min) -->
+          <div class="mb-6" id="orders-section-scheduled">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-2">Pedidos programados</h2>
+            <div id="orders-list-scheduled" class="space-y-2 sm:space-y-3"></div>
+          </div>
+          <!-- Pedidos completados -->
+          <div id="orders-section-completed">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-2">Pedidos completados</h2>
+            <div id="orders-list-completed" class="space-y-2 sm:space-y-3"></div>
+          </div>
+        </div>
+        </div>
+        <!-- New Order Form -->
+        <div id="new-order-form" class="border border-gray-200 p-3 sm:p-4 md:p-6 mt-3 sm:mt-4 hidden overflow-hidden">
+          <div id="order-form-header" class="px-4 sm:px-6 py-4 sm:py-5 -mx-3 sm:-mx-4 md:-mx-6 -mt-3 sm:-mt-4 md:-mt-6 mb-3 sm:mb-4 bg-green-600">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 id="order-form-title" class="text-lg sm:text-xl font-semibold tracking-tight text-white">Nuevo Pedido</h3>
+                <p id="order-form-subtitle" class="text-sm text-white/90 mt-1">Cree un nuevo pedido seleccionando cliente y productos</p>
+              </div>
+              <button id="close-order-form" class="text-white hover:text-gray-200 text-2xl font-light w-8 h-8 flex items-center justify-center hover:bg-white/20 transition-colors">×</button>
+            </div>
+          </div>
+          
+          <!-- Step Indicators -->
+          <div class="mb-6 sm:mb-8 flex items-center justify-center gap-1 sm:gap-2">
+            <div class="flex items-center">
+              <div id="step-1-indicator" class="w-8 h-8 rounded-full border-2 border-red-600 bg-red-600 text-white flex items-center justify-center text-sm font-light">1</div>
+              <span class="ml-1 sm:ml-2 text-xs sm:text-sm text-gray-600">Cliente</span>
+            </div>
+            <div class="w-4 sm:w-8 h-0.5 bg-gray-300"></div>
+            <div class="flex items-center">
+              <div id="step-2-indicator" class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white text-gray-400 flex items-center justify-center text-sm font-light">2</div>
+              <span class="ml-1 sm:ml-2 text-xs sm:text-sm text-gray-400">Plantilla</span>
+            </div>
+            <div class="w-4 sm:w-8 h-0.5 bg-gray-300"></div>
+            <div class="flex items-center">
+              <div id="step-3-indicator" class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white text-gray-400 flex items-center justify-center text-sm font-light">3</div>
+              <span class="ml-1 sm:ml-2 text-xs sm:text-sm text-gray-400">Productos</span>
+            </div>
+            <div class="w-4 sm:w-8 h-0.5 bg-gray-300"></div>
+            <div class="flex items-center">
+              <div id="step-4-indicator" class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white text-gray-400 flex items-center justify-center text-sm font-light">4</div>
+              <span class="ml-1 sm:ml-2 text-xs sm:text-sm text-gray-400">Detalles</span>
+            </div>
+          </div>
+          
+          <!-- Step 1: Client Selection -->
+          <div id="order-step-1" class="order-wizard-step">
+            <div class="mb-3 sm:mb-4">
+              <label class="block mb-1.5 text-xs uppercase tracking-wider text-gray-600">Cliente</label>
+              
+              <!-- Selected Client Display -->
+              <div id="selected-client-display" class="hidden mb-2 p-2 bg-gray-50 border border-gray-200 rounded">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div id="selected-client-name" class="font-light text-sm sm:text-base"></div>
+                    <div id="selected-client-phone" class="text-xs text-gray-600"></div>
+                  </div>
+                  <button type="button" id="clear-client-btn" class="px-2 py-1 text-xs text-gray-500 hover:text-red-600 transition-colors font-light underline">Cambiar</button>
+                </div>
+              </div>
+              
+              <!-- Client Search Input -->
+              <div id="client-search-container" class="relative">
+                <div class="flex items-center gap-2">
+                  <input type="text" id="client-search-input" 
+                    placeholder="Buscar cliente..." 
+                    autocomplete="off"
+                    class="flex-1 px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white text-sm sm:text-base rounded">
+                  <button id="add-new-client-from-order-btn" 
+                    type="button"
+                    class="px-3 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors rounded text-sm sm:text-base"
+                    title="Agregar nuevo cliente">
+                    +
+                  </button>
+                </div>
+                
+                <!-- Dropdown Results -->
+                <div id="client-search-results" class="hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
+                </div>
+              </div>
+              
+              <!-- Hidden input to store selected client ID -->
+              <input type="hidden" id="order-client-select" required>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-2 pt-4 sm:pt-6 border-t border-gray-200">
+              <button id="cancel-order-btn" 
+                class="flex-1 px-4 sm:px-6 py-2.5 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Cancelar
+              </button>
+              <button id="order-step-1-next" 
+                class="flex-1 px-4 sm:px-6 py-2.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Siguiente
+              </button>
+            </div>
+          </div>
+          
+          <!-- Step 2: Predefined order (plantilla) -->
+          <div id="order-step-2" class="order-wizard-step hidden">
+            <div class="mb-3 sm:mb-4">
+              <label class="block mb-1.5 text-xs uppercase tracking-wider text-gray-600">Pedido precargado</label>
+              <p class="text-sm text-gray-600 mb-2">Seleccione una plantilla para cargar productos o continúe con pedido vacío.</p>
+              <input type="hidden" id="order-predefined-select" value="">
+              <div id="order-predefined-cards" class="flex flex-wrap gap-2 sm:gap-3">
+                <button type="button" class="order-predefined-card flex-1 min-w-[140px] sm:min-w-0 sm:flex-none sm:w-[calc(25%-0.5rem)] p-3 sm:p-4 border-2 border-gray-200 rounded text-left hover:border-red-600 hover:bg-red-50/50 transition-colors" data-value="">
+                  <div class="font-medium text-sm sm:text-base text-gray-900">Crear pedido vacío</div>
+                  <div class="text-xs text-gray-500 mt-0.5">Sin productos precargados</div>
+                </button>
+                <button type="button" class="order-predefined-card flex-1 min-w-[140px] sm:min-w-0 sm:flex-none sm:w-[calc(25%-0.5rem)] p-3 sm:p-4 border-2 border-gray-200 rounded text-left hover:border-red-600 hover:bg-red-50/50 transition-colors" data-value="oferta-5">
+                  <div class="font-medium text-sm sm:text-base text-gray-900">Oferta 5 personas</div>
+                  <div class="text-xs text-gray-500 mt-0.5">Plantilla para 5</div>
+                </button>
+                <button type="button" class="order-predefined-card flex-1 min-w-[140px] sm:min-w-0 sm:flex-none sm:w-[calc(25%-0.5rem)] p-3 sm:p-4 border-2 border-gray-200 rounded text-left hover:border-red-600 hover:bg-red-50/50 transition-colors" data-value="oferta-10">
+                  <div class="font-medium text-sm sm:text-base text-gray-900">Oferta 10 personas</div>
+                  <div class="text-xs text-gray-500 mt-0.5">Plantilla para 10</div>
+                </button>
+                <button type="button" class="order-predefined-card flex-1 min-w-[140px] sm:min-w-0 sm:flex-none sm:w-[calc(25%-0.5rem)] p-3 sm:p-4 border-2 border-gray-200 rounded text-left hover:border-red-600 hover:bg-red-50/50 transition-colors" data-value="oferta-15">
+                  <div class="font-medium text-sm sm:text-base text-gray-900">Oferta 15 personas</div>
+                  <div class="text-xs text-gray-500 mt-0.5">Plantilla para 15</div>
+                </button>
+              </div>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 pt-4 sm:pt-6 border-t border-gray-200">
+              <button id="order-step-2-back" type="button"
+                class="flex-1 px-4 sm:px-6 py-2.5 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Anterior
+              </button>
+              <button id="order-step-2-next" type="button"
+                class="flex-1 px-4 sm:px-6 py-2.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Siguiente
+              </button>
+            </div>
+          </div>
+          
+          <!-- Step 3: Products -->
+          <div id="order-step-3" class="order-wizard-step hidden">
+            <div class="mb-3 sm:mb-4">
+              <label class="block mb-1.5 text-xs uppercase tracking-wider text-gray-600">Productos</label>
+              <div id="order-products-list" class="mb-2 sm:mb-3 space-y-2"></div>
+              
+              <!-- Product Search Input -->
+              <div class="relative">
+                <input type="text" id="product-search-input" 
+                  placeholder="Buscar producto..." 
+                  autocomplete="off"
+                  class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white text-sm sm:text-base rounded">
+                
+                <!-- Dropdown Results -->
+                <div id="product-search-results" class="hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
+                </div>
+              </div>
+            </div>
+
+            <div class="py-2 sm:py-3 my-2 sm:my-3 border-t border-gray-200 space-y-3">
+              <!-- Discount Section -->
+              <div class="space-y-2">
+                <label class="block text-xs uppercase tracking-wider text-gray-600 mb-2">Descuento</label>
+                <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                  <select id="order-discount-type" 
+                    class="flex-1 sm:flex-none sm:w-36 px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white text-xs sm:text-sm rounded">
+                    <option value="">Sin descuento</option>
+                    <option value="fijo">Fijo ($)</option>
+                    <option value="porcentual">Porcentaje (%)</option>
+                  </select>
+                  <input type="number" id="order-discount-value" step="0.01" min="0" 
+                    placeholder="0.00" 
+                    class="flex-1 sm:flex-none sm:w-32 px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white text-sm sm:text-base rounded">
+                </div>
+              </div>
+              
+              <!-- Subtotal -->
+              <div class="flex justify-between text-sm sm:text-base font-light text-gray-600 hidden" id="order-subtotal-row">
+                <span>Subtotal:</span>
+                <span id="order-subtotal" class="text-gray-700">$0.00</span>
+              </div>
+              
+              <!-- Discount Display -->
+              <div class="flex justify-between text-sm sm:text-base font-light text-red-600 hidden" id="order-discount-row">
+                <span id="order-discount-label">Descuento:</span>
+                <span id="order-discount-amount">-$0.00</span>
+              </div>
+              
+              <!-- Total -->
+              <div class="flex justify-between text-sm sm:text-base font-light text-gray-600 pt-2 border-t border-gray-200">
+                <span>Total:</span>
+                <span id="order-total" class="text-gray-700 font-medium">$0.00</span>
+              </div>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-2 pt-4 sm:pt-6 border-t border-gray-200">
+              <button id="order-step-3-back" 
+                class="flex-1 px-4 sm:px-6 py-2.5 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Anterior
+              </button>
+              <button id="order-step-3-next" 
+                class="flex-1 px-4 sm:px-6 py-2.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Siguiente
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 4: Date, Time and Notes -->
+          <div id="order-step-4" class="order-wizard-step hidden">
+            <div class="mb-3 sm:mb-4">
+              <label class="block mb-1.5 text-xs uppercase tracking-wider text-gray-600">Tipo de entrega</label>
+              <div class="flex gap-2 mb-3">
+                <label class="flex-1 flex items-center justify-center gap-1.5 p-3 border-2 border-red-600 rounded cursor-pointer order-delivery-type-option" data-type="envio">
+                  <input type="radio" name="order-delivery-type" value="envio" class="sr-only" checked>
+                  <span class="text-sm">Envío a domicilio</span>
+                </label>
+                <label class="flex-1 flex items-center justify-center gap-1.5 p-3 border-2 border-gray-300 rounded cursor-pointer order-delivery-type-option" data-type="retiro">
+                  <input type="radio" name="order-delivery-type" value="retiro" class="sr-only">
+                  <span class="text-sm">Retiro en local</span>
+                </label>
+              </div>
+            </div>
+            <div class="mb-3 sm:mb-4">
+              <label class="block mb-1.5 text-xs uppercase tracking-wider text-gray-600">Fecha de entrega / retiro</label>
+              <input type="date" id="order-delivery-date" 
+                class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white text-sm sm:text-base rounded mb-4">
+              <label class="block mb-1.5 text-xs uppercase tracking-wider text-gray-600">Hora</label>
+              <input type="time" id="order-delivery-time" step="300"
+                class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white text-sm sm:text-base rounded mb-4">
+            </div>
+
+            <div class="mb-3 sm:mb-4">
+              <label class="block mb-1.5 text-xs uppercase tracking-wider text-gray-600">Observaciones</label>
+              <textarea id="order-notes" rows="3" placeholder="Notas adicionales sobre el pedido..." 
+                class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white resize-y text-sm sm:text-base rounded"></textarea>
+            </div>
+
+            <div class="py-2 sm:py-3 my-2 sm:my-3 border-t border-gray-200">
+              <div class="flex justify-between text-sm sm:text-base font-light text-gray-600">
+                <span>Total:</span>
+                <span id="order-total-step-4" class="text-gray-700">$0.00</span>
+              </div>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-2 pt-4 sm:pt-6 border-t border-gray-200">
+              <button id="order-step-4-back" 
+                class="flex-1 px-4 sm:px-6 py-2.5 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Anterior
+              </button>
+              <button id="save-order-btn" 
+                class="flex-1 px-4 sm:px-6 py-2.5 bg-green-600 text-white border border-green-600 hover:bg-green-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Finalizar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Detail View -->
+        <div id="order-detail" class="border border-gray-200 p-3 sm:p-4 md:p-6 hidden relative overflow-hidden">
+          <div id="order-detail-header" class="px-4 sm:px-6 py-4 sm:py-5 -mx-3 sm:-mx-4 md:-mx-6 -mt-3 sm:-mt-4 md:-mt-6 mb-3 sm:mb-4 bg-gray-600">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg sm:text-xl font-semibold tracking-tight text-white">Detalle del Pedido</h3>
+                <p class="text-sm text-white/90 mt-1">Visualice la información completa del pedido</p>
+              </div>
+              <button id="back-to-orders" 
+                class="text-white hover:text-gray-200 text-2xl font-light w-8 h-8 flex items-center justify-center hover:bg-white/20 transition-colors">×</button>
+            </div>
+          </div>
+          <div id="order-detail-content"></div>
+          <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
+            <button id="edit-order-btn" 
+              class="flex-1 px-4 sm:px-6 py-2 bg-gray-600 text-white border border-gray-600 hover:bg-gray-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light hidden">
+              Editar
+            </button>
+            <button id="whatsapp-order-btn" 
+              class="flex-1 px-4 sm:px-6 py-2 bg-green-600 text-white border border-green-600 hover:bg-green-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+              Enviar WhatsApp
+            </button>
+            <button id="print-order-btn" 
+              class="flex-1 px-4 sm:px-6 py-2 bg-gray-600 text-white border border-gray-600 hover:bg-gray-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+              Imprimir
+            </button>
+            <button id="close-order-detail-btn" 
+              class="flex-1 px-4 sm:px-6 py-2 bg-gray-600 text-white border border-gray-600 hover:bg-gray-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+              Cerrar
+            </button>
+            <button type="button" id="delete-order-detail-btn" 
+              class="flex-1 px-4 sm:px-6 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light hidden">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal confirmar eliminar pedido completado (código de confirmación) -->
+      <div id="delete-completed-order-modal" class="fixed inset-0 bg-black/50 z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-md w-full rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-gray-200">
+            <h3 class="text-lg font-light text-gray-800">Eliminar pedido completado</h3>
+          </div>
+          <div class="p-4 space-y-3">
+            <p class="text-sm text-gray-600">Para eliminar este pedido completado, escriba el código de confirmación:</p>
+            <p class="text-sm font-medium text-gray-900"><code class="bg-gray-100 px-1.5 py-0.5 rounded">ELIMINAR</code></p>
+            <input type="text" id="delete-completed-order-code-input" class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 rounded" placeholder="Escriba ELIMINAR" autocomplete="off" maxlength="20">
+          </div>
+          <div class="p-4 border-t border-gray-200 flex gap-2">
+            <button type="button" id="delete-completed-order-cancel" class="flex-1 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light rounded">Cancelar</button>
+            <button type="button" id="delete-completed-order-confirm-btn" class="flex-1 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>Eliminar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal vista previa de impresión -->
+      <div id="print-preview-modal" class="fixed inset-0 bg-black/50 z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-lg w-full rounded-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+            <h3 class="text-lg font-light text-gray-800">Vista previa de impresión</h3>
+            <button type="button" id="print-preview-close" class="text-gray-400 hover:text-red-600 text-xl font-light">×</button>
+          </div>
+          <div class="px-4 pt-2 pb-1 flex items-center gap-2 shrink-0">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input type="checkbox" id="print-preview-with-price" class="rounded border-gray-300 text-red-600 focus:ring-red-500" checked>
+              <span>Incluir precios en el ticket</span>
+            </label>
+          </div>
+          <div id="print-preview-content" class="p-4 overflow-y-auto flex-1 min-h-0 bg-gray-100 flex justify-center">
+            <!-- Se rellena con el ticket en formato 80mm -->
+          </div>
+          <div class="p-4 border-t border-gray-200 flex gap-2 shrink-0">
+            <button type="button" id="print-preview-cancel" class="flex-1 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light rounded">Cancelar</button>
+            <button type="button" id="print-preview-confirm" class="flex-1 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light rounded">Imprimir</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal rechazar pedido (motivo seleccionable) -->
+      <div id="reject-order-modal" class="fixed inset-0 bg-black/50 z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-md w-full rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-gray-200">
+            <h3 class="text-lg font-light text-gray-800">Rechazar pedido</h3>
+          </div>
+          <div class="p-4 space-y-3">
+            <p class="text-sm text-gray-600">Seleccione el motivo del rechazo:</p>
+            <select id="reject-order-reason" class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 rounded bg-white">
+              <option value="Cliente no responde">Cliente no responde</option>
+              <option value="Fuera de zona de entrega">Fuera de zona de entrega</option>
+              <option value="Producto no disponible">Producto no disponible</option>
+              <option value="Pedido duplicado">Pedido duplicado</option>
+              <option value="Horario no disponible">Horario no disponible</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="p-4 border-t border-gray-200 flex gap-2">
+            <button type="button" id="reject-order-modal-cancel" class="flex-1 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light rounded">Cancelar</button>
+            <button type="button" id="reject-order-modal-confirm" class="flex-1 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light rounded">Rechazar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clients View -->
+      <div id="clients-view" class="view space-y-3 sm:space-y-4 hidden">
+        <div class="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-2 sm:gap-0 mb-2 sm:mb-3">
+          <button id="new-client-btn" 
+            class="w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+            Nuevo Cliente
+          </button>
+        </div>
+        
+        <!-- Search Filter -->
+        <div class="mb-3 sm:mb-4">
+          <input type="text" id="clients-search-input" 
+            placeholder="Buscar clientes por nombre, teléfono, dirección..." 
+            class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-red-600 bg-white text-sm sm:text-base rounded">
+        </div>
+        
+        <div id="clients-list" class="space-y-1.5 sm:space-y-2"></div>
+
+        <div id="client-detail" class="border border-gray-200 p-3 sm:p-4 md:p-6 hidden overflow-hidden">
+          <div id="client-detail-header" class="px-4 sm:px-6 py-4 sm:py-5 -mx-3 sm:-mx-4 md:-mx-6 -mt-3 sm:-mt-4 md:-mt-6 mb-3 sm:mb-4 bg-gray-600">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg sm:text-xl font-semibold tracking-tight text-white">Detalle del Cliente</h3>
+                <p class="text-sm text-white/90 mt-1">Visualice la información completa del cliente</p>
+              </div>
+              <button id="back-to-clients" 
+                class="text-white hover:text-gray-200 text-2xl font-light w-8 h-8 flex items-center justify-center hover:bg-white/20 transition-colors">×</button>
+            </div>
+          </div>
+          <div id="client-detail-content"></div>
+          <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
+            <button id="edit-client-detail-btn" 
+              class="flex-1 px-4 sm:px-6 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+              Editar
+            </button>
+            <button id="delete-client-detail-btn" 
+              class="flex-1 px-4 sm:px-6 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+              Eliminar
+            </button>
+            <button id="close-client-detail-btn" 
+              class="flex-1 px-4 sm:px-6 py-2 bg-gray-600 text-white border border-gray-600 hover:bg-gray-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+              Cerrar
+            </button>
+          </div>
+        </div>
+
+        <div id="client-form" class="border border-gray-200 p-3 sm:p-4 md:p-6 mt-3 sm:mt-4 hidden overflow-hidden">
+          <div id="client-form-header" class="px-4 sm:px-6 py-4 sm:py-5 -mx-3 sm:-mx-4 md:-mx-6 -mt-3 sm:-mt-4 md:-mt-6 mb-3 sm:mb-4 bg-green-600">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 id="client-form-title" class="text-lg sm:text-xl font-semibold tracking-tight text-white">Nuevo Cliente</h3>
+                <p id="client-form-subtitle" class="text-sm text-white/90 mt-1">Registre la información del nuevo cliente</p>
+              </div>
+              <button id="close-client-form" class="text-white hover:text-gray-200 text-2xl font-light w-8 h-8 flex items-center justify-center hover:bg-white/20 transition-colors">×</button>
+            </div>
+          </div>
+          <form id="client-form-element">
+            <input type="hidden" id="client-id">
+            <div class="mb-4 sm:mb-6">
+              <label class="block mb-1.5 sm:mb-2 text-xs uppercase tracking-wider text-gray-600">Nombre</label>
+              <input type="text" id="client-name" required 
+                class="w-full px-0 py-2 border-0 border-b border-gray-300 focus:outline-none focus:border-red-600 bg-transparent text-sm sm:text-base">
+            </div>
+            <div class="mb-4 sm:mb-6">
+              <label class="block mb-1.5 sm:mb-2 text-xs uppercase tracking-wider text-gray-600">Teléfono</label>
+              <input type="tel" id="client-phone" 
+                class="w-full px-0 py-2 border-0 border-b border-gray-300 focus:outline-none focus:border-red-600 bg-transparent text-sm sm:text-base">
+            </div>
+            <div class="mb-4 sm:mb-6">
+              <label class="block mb-1.5 sm:mb-2 text-xs uppercase tracking-wider text-gray-600">Dirección</label>
+              <textarea id="client-address" rows="3" 
+                class="w-full px-0 py-2 border-0 border-b border-gray-300 focus:outline-none focus:border-red-600 bg-transparent resize-y text-sm sm:text-base"></textarea>
+            </div>
+            <div class="mb-4 sm:mb-6">
+              <label class="block mb-1.5 sm:mb-2 text-xs uppercase tracking-wider text-gray-600">Descripción</label>
+              <textarea id="client-description" rows="3" 
+                class="w-full px-0 py-2 border-0 border-b border-gray-300 focus:outline-none focus:border-red-600 bg-transparent resize-y text-sm sm:text-base"></textarea>
+            </div>
+            
+            <!-- Preferred Prices Section -->
+            <div class="mb-4 sm:mb-6 pt-4 sm:pt-6 border-t border-gray-200">
+              <label class="block mb-2 sm:mb-3 text-xs uppercase tracking-wider text-gray-600">Precios Preferidos</label>
+              <div id="client-preferred-prices-list" class="mb-3 sm:mb-4 space-y-2 sm:space-y-3"></div>
+              <button type="button" id="add-preferred-price-btn" 
+                class="w-full sm:w-auto px-4 sm:px-6 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                + Agregar Precio Preferido
+              </button>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 pt-4 sm:pt-6 border-t border-gray-200">
+              <button type="submit" id="save-client-btn"
+                class="flex-1 px-4 sm:px-6 py-2 bg-green-600 text-white border border-green-600 hover:bg-green-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Guardar
+              </button>
+              <button type="button" id="cancel-client-btn" 
+                class="flex-1 px-4 sm:px-6 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Lunch Budget View -->
+      <div id="lunch-view" class="view space-y-3 sm:space-y-4 hidden">
+        <div id="lunch-offer-buttons" class="flex flex-wrap gap-2 sm:gap-3 mb-3">
+          <span class="text-sm text-gray-600 font-medium self-center mr-1">Precargar oferta:</span>
+          <button type="button" id="lunch-offer-5-btn" class="px-4 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+            5 personas
+          </button>
+          <button type="button" id="lunch-offer-10-btn" class="px-4 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+            10 personas
+          </button>
+          <button type="button" id="lunch-offer-15-btn" class="px-4 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+            15 personas
+          </button>
+        </div>
+        <div id="lunch-toolbar" class="sticky top-0 z-10 flex flex-wrap items-center gap-3 sm:gap-4 py-3 pb-4 mb-2 bg-white border-b border-gray-200 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6">
+          <button type="button" id="lunch-clear-btn"
+            class="px-4 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+            Limpiar
+          </button>
+          <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700 select-none">
+            <input type="checkbox" id="lunch-filter-rows-with-qty" class="border-gray-300 text-red-600 focus:ring-red-600 rounded">
+            <span>Mostrar solo filas con cantidad</span>
+          </label>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full border border-gray-200 text-sm sm:text-base" id="lunch-budget-table">
+            <thead>
+              <tr class="bg-amber-100 font-semibold">
+                <th class="border border-gray-300 px-2 py-2 sm:px-3 sm:py-2.5 text-left uppercase tracking-wider text-gray-800">Producto</th>
+                <th class="border border-gray-300 px-2 py-2 sm:px-3 sm:py-2.5 text-center w-24 sm:w-28 uppercase tracking-wider text-gray-800">Cantidad</th>
+                <th class="border border-gray-300 px-2 py-2 sm:px-3 sm:py-2.5 text-right uppercase tracking-wider text-gray-800">Precio</th>
+                <th class="border border-gray-300 px-2 py-2 sm:px-3 sm:py-2.5 text-right uppercase tracking-wider text-gray-800">Total</th>
+              </tr>
+            </thead>
+            <tbody id="lunch-budget-tbody">
+              <!-- Rows filled by JS from products with tag LUNCH -->
+            </tbody>
+          </table>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-gray-200">
+          <div class="bg-gray-100 px-3 py-2 rounded">
+            <div class="text-xs uppercase tracking-wider text-gray-600 font-semibold">Cant. personas</div>
+            <input type="number" id="lunch-cant-personas" min="1" value="10" 
+              class="w-full mt-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-red-600 bg-white">
+          </div>
+          <div class="bg-gray-100 px-3 py-2 rounded">
+            <div class="text-xs uppercase tracking-wider text-gray-600 font-semibold">Total bocaditos</div>
+            <div id="lunch-total-bocaditos" class="mt-1 font-light text-gray-800">0</div>
+          </div>
+          <div class="bg-gray-100 px-3 py-2 rounded">
+            <div class="text-xs uppercase tracking-wider text-gray-600 font-semibold">Bocaditos x persona</div>
+            <div id="lunch-bocaditos-x-persona" class="mt-1 font-light text-gray-800">0</div>
+          </div>
+          <div class="bg-gray-100 px-3 py-2 rounded">
+            <div class="text-xs uppercase tracking-wider text-gray-600 font-semibold">Importe total</div>
+            <div id="lunch-importe-total" class="mt-1 font-light text-gray-800">$ -</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Catalog View (gestión catálogo para app cliente) - Arquitectura: Productos | Opcionales, dos columnas -->
+      <div id="catalog-view" class="view flex flex-col min-h-0 hidden">
+        <!-- Horario del local: sección colapsable; al colapsar muestra estado actual del catálogo -->
+        <div id="catalog-store-hours-section" class="mb-4 bg-gray-50 border border-gray-200 rounded overflow-hidden">
+          <button type="button" id="catalog-store-hours-toggle" class="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-gray-100 transition-colors">
+            <span class="text-sm font-medium text-gray-700">Horario del local</span>
+            <span class="flex-1 min-w-0"></span>
+            <span id="catalog-store-status-badge" class="text-xs font-semibold truncate max-w-[12rem] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 shrink-0">—</span>
+            <svg id="catalog-store-hours-chevron" class="w-4 h-4 text-gray-500 shrink-0 transition-transform rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="catalog-store-hours-content" class="border-t border-gray-200 px-4 pt-3 pb-4 hidden">
+            <div class="flex flex-wrap items-end gap-4">
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Apertura</label>
+                <input type="time" id="catalog-store-open-time" class="px-3 py-1.5 border border-gray-300 text-sm" value="08:00">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Cierre</label>
+                <input type="time" id="catalog-store-close-time" class="px-3 py-1.5 border border-gray-300 text-sm" value="20:00">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Estado manual</label>
+                <select id="catalog-store-manual-override" class="px-3 py-1.5 border border-gray-300 text-sm bg-white">
+                  <option value="">Automático (por horario)</option>
+                  <option value="open">Abierto ahora</option>
+                  <option value="closed">Cerrado ahora</option>
+                </select>
+              </div>
+              <button type="button" id="catalog-store-hours-save" class="px-4 py-1.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light">Guardar horario</button>
+            </div>
+          </div>
+        </div>
+        <!-- Barra superior: tabs Productos / Opcionales, búsqueda, filtrar -->
+        <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3 mb-3">
+          <div class="flex border border-gray-300">
+            <button type="button" class="catalog-sub-nav px-4 py-2 text-sm font-light border-r border-gray-300 bg-red-600 text-white" data-sub="products">Productos</button>
+            <button type="button" class="catalog-sub-nav px-4 py-2 text-sm font-light text-gray-600 hover:bg-gray-100 border-l border-gray-300" data-sub="options">Opcionales</button>
+          </div>
+          <div class="flex-1 flex items-center min-w-0">
+            <input type="text" id="catalog-search" class="flex-1 min-w-0 px-3 py-1.5 border border-gray-300 text-sm" placeholder="Buscar...">
+          </div>
+        </div>
+
+        <!-- Panel Productos: dos columnas 25% / 75% -->
+        <div id="catalog-sub-products" class="catalog-sub-panel flex-1 flex min-h-0 gap-4">
+          <div class="w-1/4 min-w-[12rem] shrink-0 flex flex-col gap-2 border-r border-gray-200 pr-4">
+            <button type="button" id="catalog-add-section-btn" class="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light">
+              <span>+</span> Agregar Sección
+            </button>
+            <div id="catalog-sections-list" class="flex-1 overflow-y-auto space-y-1"></div>
+          </div>
+          <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <h3 id="catalog-section-title" class="text-lg font-light text-gray-800 flex items-center gap-1">
+                <span id="catalog-section-title-text">Todos</span>
+                <button type="button" id="catalog-section-edit-btn" class="p-1 text-gray-400 hover:text-red-600 hidden" title="Editar nombre de la sección" aria-label="Editar sección"></button>
+              </h3>
+              <button type="button" id="catalog-add-product-btn" class="px-3 py-1.5 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-light flex items-center gap-1">
+                <span>+</span> Agregar Producto
+              </button>
+            </div>
+            <div id="catalog-products-list" class="flex-1 overflow-y-auto space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- Panel Opcionales: dos columnas (mitad y mitad) -->
+        <div id="catalog-sub-options" class="catalog-sub-panel hidden flex-1 flex min-h-0 gap-4">
+          <div class="flex-1 min-w-0 flex flex-col gap-2 border-r border-gray-200 pr-4">
+            <button type="button" id="catalog-add-option-group-btn" class="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light shrink-0">
+              <span>+</span> Agregar grupo de opcionales
+            </button>
+            <div id="catalog-option-groups-list" class="flex-1 overflow-y-auto space-y-1"></div>
+          </div>
+          <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <h3 id="catalog-option-group-title" class="text-lg font-light text-gray-800 flex items-center gap-1">
+                <span id="catalog-option-group-title-text">—</span>
+                <button type="button" id="catalog-option-group-edit-btn" class="text-gray-400 hover:text-red-600 text-sm" title="Editar grupo" aria-label="Editar grupo">✎</button>
+              </h3>
+              <button type="button" id="catalog-add-optional-btn" class="px-3 py-1.5 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-light flex items-center gap-1 shrink-0" title="Agregar ítem al grupo seleccionado">
+                <span>+</span> Agregar ítem
+              </button>
+            </div>
+            <div id="catalog-option-group-products" class="text-sm text-gray-600 mb-2 flex items-center gap-1"></div>
+            <div id="catalog-options-list" class="flex-1 overflow-y-auto space-y-2"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Editar producto -->
+      <div id="catalog-edit-product-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+            <h3 class="text-lg font-light text-gray-800">Editar producto</h3>
+            <button type="button" id="catalog-edit-product-close" class="text-gray-400 hover:text-red-600 text-xl font-light">×</button>
+          </div>
+          <div class="p-4 overflow-y-auto space-y-4">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Producto o variante del sistema <span class="text-red-600">*</span></label>
+              <div class="relative">
+                <input type="text" id="catalog-edit-product-system-input" placeholder="Buscar producto o variante..." autocomplete="off" class="w-full px-3 py-2 border border-gray-300 text-sm">
+                <input type="hidden" id="catalog-edit-product-system-sku" value="">
+                <div id="catalog-edit-product-system-results" class="hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto"></div>
+              </div>
+            </div>
+            <div class="w-full flex flex-col gap-2">
+              <div class="w-full flex items-center justify-center bg-gray-100 border border-gray-200 aspect-[4/3] relative overflow-hidden">
+                <img id="catalog-edit-product-image" src="" alt="" class="w-full h-full object-cover hidden">
+                <span id="catalog-edit-product-image-placeholder" class="text-gray-400 text-sm">Sin imagen</span>
+              </div>
+              <div id="catalog-edit-product-image-link-wrap">
+                <button type="button" id="catalog-edit-product-image-btn" class="text-sm text-gray-600 hover:text-red-600 underline" title="Cambiar imagen">Cambiar imagen</button>
+              </div>
+              <div id="catalog-edit-product-image-form" class="hidden flex flex-col gap-2">
+                <input type="text" id="catalog-edit-product-image-input" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="Ruta (ej: assets/images/producto.jpg)">
+                <div class="flex gap-2">
+                  <button type="button" id="catalog-edit-product-image-save" class="px-3 py-1.5 bg-red-600 text-white text-sm hover:bg-red-700 border border-red-700">Guardar</button>
+                  <button type="button" id="catalog-edit-product-image-cancel" class="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm hover:bg-gray-50">Cancelar</button>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="catalog-edit-product-image-path" value="">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Nombre <span class="text-red-600">*</span></label>
+              <input type="text" id="catalog-edit-product-name" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="Nombre en catálogo">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Descripción</label>
+              <textarea id="catalog-edit-product-desc" class="w-full px-3 py-2 border border-gray-300 text-sm" rows="2" placeholder="Descripción"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Categoría <span class="text-red-600">*</span></label>
+              <select id="catalog-edit-product-category" class="w-full px-3 py-2 border border-gray-300 text-sm">
+                <option value="">Sin categoría</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Precio (UYU)</label>
+              <input type="number" id="catalog-edit-product-price" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="Vacío = precio del producto" min="0" step="1">
+            </div>
+            <div id="catalog-edit-product-options-block">
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="text-sm font-medium text-gray-700">Opcionales</span>
+              </div>
+              <div class="flex items-center gap-2 mb-2">
+                <select id="catalog-edit-product-option-select" class="flex-1 min-w-0 px-3 py-1.5 border border-gray-300 text-sm bg-white">
+                  <option value="">Seleccionar grupo...</option>
+                </select>
+                <button type="button" id="catalog-edit-product-add-option" class="text-red-600 text-sm font-light shrink-0">+ Agregar</button>
+              </div>
+              <div id="catalog-edit-product-options-list" class="space-y-2"></div>
+              <div id="catalog-edit-product-choice-variant-picker" class="hidden mt-3 p-3 border border-gray-200 rounded bg-gray-50" data-option-index="" data-choice-id="">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Asignar producto o variante del sistema a este ítem</label>
+                <div class="relative">
+                  <input type="text" id="catalog-edit-product-choice-variant-input" placeholder="Buscar producto o variante..." autocomplete="off" class="w-full px-2 py-1.5 border border-gray-300 text-sm">
+                  <div id="catalog-edit-product-choice-variant-results" class="hidden absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto"></div>
+                </div>
+                <div class="mt-2">
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Precio en catálogo (UYU)</label>
+                  <input type="number" id="catalog-edit-product-choice-price" class="w-full px-2 py-1.5 border border-gray-300 text-sm" placeholder="Vacío = precio del producto" min="0" step="1">
+                </div>
+                <div class="mt-2 flex gap-2">
+                  <button type="button" id="catalog-edit-product-choice-variant-apply" class="text-xs text-blue-600 hover:text-blue-800 font-light">Aplicar precio</button>
+                  <button type="button" id="catalog-edit-product-choice-variant-cancel" class="text-xs text-gray-500 hover:text-gray-700">Cancelar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="p-4 border-t border-gray-200 flex flex-col gap-2 shrink-0">
+            <button type="button" id="catalog-edit-product-delete" class="w-full px-4 py-2 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-light flex items-center justify-center gap-2">
+              🗑 Eliminar producto
+            </button>
+            <button type="button" id="catalog-edit-product-save" class="w-full px-4 py-2 bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 text-sm font-light disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal confirmar eliminar producto (escribir nombre para confirmar) -->
+      <div id="catalog-delete-product-confirm-modal" class="fixed inset-0 bg-black/50 z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-md w-full rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-gray-200">
+            <h3 class="text-lg font-light text-gray-800">Eliminar producto</h3>
+          </div>
+          <div class="p-4 space-y-3">
+            <p class="text-sm text-gray-600">Para confirmar, escriba el nombre del producto tal cual:</p>
+            <p id="catalog-delete-product-confirm-name" class="text-sm font-medium text-gray-900 break-words"></p>
+            <input type="text" id="catalog-delete-product-confirm-input" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="Escriba el nombre del producto" autocomplete="off">
+          </div>
+          <div class="p-4 border-t border-gray-200 flex gap-2">
+            <button type="button" id="catalog-delete-product-confirm-cancel" class="flex-1 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light rounded">Cancelar</button>
+            <button type="button" id="catalog-delete-product-confirm-btn" class="flex-1 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled>Eliminar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Opciones del artículo: ver grupos, elementos y habilitar/deshabilitar -->
+      <div id="catalog-product-options-modal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+            <h3 id="catalog-product-options-modal-title" class="text-lg font-light text-gray-800">Opciones del artículo</h3>
+            <button type="button" id="catalog-product-options-modal-close" class="text-gray-400 hover:text-red-600 text-xl font-light">×</button>
+          </div>
+          <div id="catalog-product-options-content" class="p-4 overflow-y-auto flex-1 space-y-4">
+            <!-- Se rellena por JS: grupos y sus elementos con toggle -->
+          </div>
+          <div class="p-4 border-t border-gray-200 flex flex-wrap gap-2 shrink-0">
+            <button type="button" id="catalog-product-options-edit-article" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light">
+              Editar artículo
+            </button>
+            <button type="button" id="catalog-product-options-edit-optional" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light">
+              Editar opcional
+            </button>
+            <button type="button" id="catalog-product-options-close-btn" class="px-4 py-2 bg-gray-600 text-white border border-gray-600 hover:bg-gray-700 text-sm font-light">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal elegir grupo de opcionales (para agregar al producto) -->
+      <div id="catalog-pick-option-group-modal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-sm w-full rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-light text-gray-800">Agregar grupo de opcionales</h3>
+            <button type="button" id="catalog-pick-option-group-close" class="text-gray-400 hover:text-red-600 text-xl font-light">×</button>
+          </div>
+          <p class="px-4 pt-3 text-sm text-gray-600">Elija el grupo a agregar al producto:</p>
+          <div id="catalog-pick-option-group-list" class="p-4 space-y-1 max-h-60 overflow-y-auto"></div>
+          <div class="p-4 border-t border-gray-200">
+            <button type="button" id="catalog-pick-option-group-cancel" class="w-full py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light rounded">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Editar grupo de opcionales (nombre interno y comercial) -->
+      <div id="catalog-edit-option-group-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-md w-full">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 id="catalog-edit-option-group-modal-title" class="text-lg font-light text-gray-800">Editar grupo de opcionales</h3>
+            <button type="button" id="catalog-edit-option-group-close" class="text-gray-400 hover:text-red-600 text-xl font-light">×</button>
+          </div>
+          <div class="p-4 space-y-4">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Nombre interno <span class="text-red-600">*</span></label>
+              <input type="text" id="catalog-edit-option-group-name" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="Ej: sabor" title="Para gestión en esta app">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Nombre comercial (se muestra entre paréntesis)</label>
+              <input type="text" id="catalog-edit-option-group-commercial-name" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="Ej: Sabor" title="Se verá como: Nombre interno (Nombre comercial)">
+            </div>
+          </div>
+          <div class="p-4 border-t border-gray-200">
+            <button type="button" id="catalog-edit-option-group-save" class="w-full px-4 py-2 bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 text-sm font-light disabled:opacity-50 disabled:cursor-not-allowed">
+              Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Editar opcional: solo nombre del ítem (producto/variante se asocia en Editar artículo) -->
+      <div id="catalog-edit-optional-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-md w-full">
+          <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-lg font-light text-gray-800">Editar opcional</h3>
+            <button type="button" id="catalog-edit-optional-close" class="text-gray-400 hover:text-red-600 text-xl font-light">×</button>
+          </div>
+          <div class="p-4 space-y-4">
+            <p class="text-xs text-gray-500">El enlace con producto o variante del sistema se define al editar cada artículo del catálogo.</p>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1">Nombre del ítem <span class="text-red-600">*</span></label>
+              <input type="text" id="catalog-edit-optional-name" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="Ej: Jamón, Con sal" title="Nombre de esta opción dentro del grupo">
+            </div>
+          </div>
+          <div class="p-4 border-t border-gray-200 flex flex-col gap-2">
+            <button type="button" id="catalog-edit-optional-delete" class="w-full px-4 py-2 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-light flex items-center justify-center gap-2">
+              🗑 Eliminar opcional
+            </button>
+            <button type="button" id="catalog-edit-optional-save" class="w-full px-4 py-2 bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 text-sm font-light disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+              Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal confirmar eliminar opcional -->
+      <div id="catalog-delete-optional-confirm-modal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-gray-200 shadow-lg max-w-sm w-full rounded overflow-hidden">
+          <div class="p-4 border-b border-gray-200">
+            <h3 class="text-lg font-light text-gray-800">Eliminar opcional</h3>
+          </div>
+          <div class="p-4">
+            <p class="text-sm text-gray-600">¿Eliminar este opcional?</p>
+          </div>
+          <div class="p-4 border-t border-gray-200 flex gap-2">
+            <button type="button" id="catalog-delete-optional-confirm-cancel" class="flex-1 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light rounded">
+              Cancelar
+            </button>
+            <button type="button" id="catalog-delete-optional-confirm-btn" class="flex-1 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light rounded">
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Profile Modal -->
+  <div id="profile-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg max-w-md w-full border border-gray-200 shadow-lg">
+      <div class="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg sm:text-xl font-light tracking-tight">Perfil de Usuario</h3>
+        <button id="close-profile-modal" class="text-gray-400 hover:text-red-600 text-xl font-light">×</button>
+      </div>
+      <div id="profile-modal-content" class="p-4 sm:p-6 space-y-4">
+        <!-- User data will be inserted here -->
+      </div>
+      <div class="p-4 sm:p-6 border-t border-gray-200 space-y-2">
+        <a href="https://yosbany.github.io/nrd-portal" 
+          class="block w-full px-4 sm:px-6 py-2 bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light text-center">
+          Ir al Portal
+        </a>
+        <button id="profile-logout-btn" 
+          class="w-full px-4 sm:px-6 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal prueba de sonido (interacción para desbloquear aviso de nuevos pedidos) -->
+  <div id="sound-test-modal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg max-w-md w-full border border-gray-200 shadow-lg p-4 sm:p-6">
+      <h3 class="text-lg sm:text-xl font-light text-gray-900 mb-2">Prueba de sonido</h3>
+      <p class="text-sm text-gray-600 mb-4">Para que suene el aviso cuando llegue un pedido nuevo, haga clic en el botón. El navegador requiere esta interacción para permitir el sonido.</p>
+      <button type="button" id="sound-test-modal-btn" class="w-full py-3 px-4 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+        Probar sonido
+      </button>
+    </div>
+  </div>
+
+  <!-- Custom Modal -->
+  <div id="custom-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg max-w-md w-full border border-gray-200 shadow-lg">
+      <div class="p-4 sm:p-6">
+        <h3 id="modal-title" class="text-lg sm:text-xl font-light mb-3 sm:mb-4 text-black"></h3>
+        <div id="modal-message" class="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6"></div>
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <button id="modal-confirm" class="flex-1 px-4 sm:px-6 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+            Confirmar
+          </button>
+          <button id="modal-cancel" class="flex-1 px-4 sm:px-6 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Alert -->
+  <div id="custom-alert" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg max-w-md w-full border border-gray-200 shadow-lg">
+      <div class="p-4 sm:p-6">
+        <h3 id="alert-title" class="text-lg sm:text-xl font-light mb-3 sm:mb-4 text-black"></h3>
+        <p id="alert-message" class="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6"></p>
+        <div class="flex justify-end">
+          <button id="alert-ok" class="px-4 sm:px-6 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
+            Aceptar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NRD Data Access Library (incluye Firebase): local en desarrollo, CDN en producción -->
+  <script>
+    var _nrdSrc = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
+      ? '/nrd-data-access/dist/nrd-data-access.js'
+      : 'https://cdn.jsdelivr.net/gh/yosbany/nrd-data-access@main/dist/nrd-data-access.js';
+    document.write('<script src="' + _nrdSrc + '"><\/script>');
+  </script>
+  
+  <!-- jsPDF for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
+  <!-- Logger (must load before other app scripts) -->
+  <script src="logger.js"></script>
+  
+  <!-- NRD Data Access inicializa Firebase internamente -->
+  <script>
+    window.nrd = new NRDDataAccess();
+    var nrd = window.nrd;
+  </script>
+  
+  <!-- App Scripts -->
+  <script src="modal.js?v=1773568749521"></script>
+  <script src="auth.js?v=1773568749521"></script>
+  <script src="tabs/clients.js?v=1773568749521"></script>
+  <script src="tabs/orders.js?v=1773568749521"></script>
+  <script src="tabs/lunch.js?v=1773568749521"></script>
+  <script src="tabs/catalog.js?v=1773568749521"></script>
+  <script src="app.js?v=1773568749521"></script>
+
+  <script>
+    // Global error handler
+    window.addEventListener('error', (event) => {
+      console.error('Global error:', event.error);
+      // Show error message if app screen is visible
+      const appScreen = document.getElementById('app-screen');
+      if (appScreen && !appScreen.classList.contains('hidden')) {
+        const errorMsg = document.createElement('div');
+        errorMsg.className = 'fixed top-20 left-0 right-0 bg-red-600 text-white p-4 z-50 text-center';
+        errorMsg.textContent = 'Error al cargar la aplicación. Por favor, recarga la página.';
+        document.body.appendChild(errorMsg);
+        setTimeout(() => errorMsg.remove(), 5000);
+      }
+    });
+
+    // Unhandled promise rejection handler
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('Unhandled promise rejection:', event.reason);
+    });
+
+    // Check if page is loaded after timeout
+    let pageLoaded = false;
+    setTimeout(() => {
+      if (!pageLoaded) {
+        const loginScreen = document.getElementById('login-screen');
+        const appScreen = document.getElementById('app-screen');
+        if (loginScreen && loginScreen.classList.contains('hidden') && 
+            appScreen && appScreen.classList.contains('hidden')) {
+          // Both screens are hidden, something is wrong
+          console.error('App screens not visible, forcing login screen');
+          if (loginScreen) loginScreen.classList.remove('hidden');
+          if (appScreen) appScreen.classList.add('hidden');
+        }
+      }
+    }, 3000);
+
+    // Mark as loaded when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        pageLoaded = true;
+      });
+    } else {
+      pageLoaded = true;
+    }
+
+    // Register service worker (non-blocking)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // Register service worker without version parameter
+        navigator.serviceWorker.register('service-worker.js?v=1773568749521')
+          .then(reg => {
+            console.log('Service Worker registered');
+            
+            // Check for updates every time
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New service worker available, reload page
+                  console.log('New service worker available, reloading...');
+                  window.location.reload();
+                }
+              });
+            });
+            
+            // Check for updates periodically
+            setInterval(() => {
+              reg.update();
+            }, 60000); // Check every minute
+            
+            // Force update on page load
+            reg.update();
+          })
+          .catch(err => {
+            console.log('Service Worker registration failed:', err);
+          });
+      });
+    }
+
+    // PWA Install prompt
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('install-btn');
+
+    // Debug: Log PWA installability
+    function checkInstallability() {
+      console.log('=== PWA Installability Check ===');
+      console.log('Service Worker:', 'serviceWorker' in navigator ? 'Available' : 'Not available');
+      console.log('Standalone mode:', window.matchMedia('(display-mode: standalone)').matches ? 'Yes (already installed)' : 'No');
+      console.log('Install button element:', installBtn ? 'Found' : 'Not found');
+      console.log('Deferred prompt:', deferredPrompt ? 'Available' : 'Not available');
+      
+      // Check manifest
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          console.log('Service Worker registered:', reg ? 'Yes' : 'No');
+        });
+      }
+    }
+
+    // Check if app is already installed
+    if (window.matchMedia('(display-mode: standalone)').matches || 
+        window.navigator.standalone === true) {
+      // App is installed, hide install button
+      if (installBtn) installBtn.classList.add('hidden');
+      console.log('App is already installed');
+    }
+
+    // Listen for beforeinstallprompt event (Chrome, Edge, etc.)
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('beforeinstallprompt event fired');
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPrompt = e;
+      // Show install button
+      if (installBtn) {
+        installBtn.classList.remove('hidden');
+        console.log('Install button shown');
+      }
+    });
+
+    // Handle install button click
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        console.log('Install button clicked');
+        
+        if (!deferredPrompt) {
+          // Show manual install instructions
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          const isAndroid = /Android/.test(navigator.userAgent);
+          
+          let message = 'Para instalar la app:\n\n';
+          if (isIOS) {
+            message += '1. Toca el botón "Compartir" (cuadrado con flecha)\n';
+            message += '2. Selecciona "Agregar a pantalla de inicio"\n';
+            message += '3. Confirma la instalación';
+          } else if (isAndroid) {
+            message += '1. Abre el menú del navegador (3 puntos)\n';
+            message += '2. Busca "Instalar app" o "Agregar a pantalla de inicio"\n';
+            message += '3. Confirma la instalación';
+          } else {
+            message += 'Chrome: Menú → "Instalar app"\n';
+            message += 'Safari: Compartir → "Agregar a pantalla de inicio"';
+          }
+          
+          await showInfo(message);
+          return;
+        }
+        
+        try {
+          // Show the install prompt
+          deferredPrompt.prompt();
+          
+          // Wait for the user to respond to the prompt
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log(`User response to the install prompt: ${outcome}`);
+          
+          if (outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          } else {
+            console.log('User dismissed the install prompt');
+          }
+          
+          // Clear the deferredPrompt
+          deferredPrompt = null;
+          
+          // Hide install button
+          installBtn.classList.add('hidden');
+        } catch (error) {
+          console.error('Error showing install prompt:', error);
+          await showError('Error al mostrar la opción de instalación. Intenta desde el menú del navegador.');
+        }
+      });
+    }
+
+    // Listen for app installed event
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA was installed');
+      deferredPrompt = null;
+      if (installBtn) installBtn.classList.add('hidden');
+    });
+
+    // Run check after page loads
+    setTimeout(checkInstallability, 2000);
+  </script>
+</body>
+</html>

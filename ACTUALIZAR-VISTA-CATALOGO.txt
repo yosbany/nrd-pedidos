@@ -1,0 +1,16 @@
+Si ves "Productos en catálogo" y NO ves el botón "Precargar catálogo" ni "Agregar Producto", el navegador está mostrando una versión antigua en caché.
+
+Para ver la interfaz nueva (con ambos botones):
+
+1. Abre nrd-pedidos en Chrome/Edge.
+2. F12 → pestaña "Application" (Aplicación).
+3. En el menú izquierdo: "Storage" → "Clear site data" (Borrar datos del sitio), o solo "Service Workers" → Unregister.
+4. Cierra DevTools y recarga con Ctrl+Shift+R (Windows) o Cmd+Shift+R (Mac).
+
+O bien: abre la app en una ventana de incógnito/privada con la misma URL.
+
+Después deberías ver:
+- Pestañas: Productos | Opcionales | Categorías (no "Productos en catálogo").
+- Una franja verde con el botón "Precargar catálogo".
+- Columna izquierda: "Agregar Sección" y lista de secciones.
+- Columna derecha: título "Todos", botón "+ Agregar Producto", lista de productos.

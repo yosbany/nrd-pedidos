@@ -1,0 +1,83 @@
+/* Minimal custom styles - most styling handled by Tailwind */
+.hidden {
+  display: none !important;
+}
+
+/* Parpadeo para botón Aceptar pedido */
+@keyframes order-accept-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+  50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+}
+.order-card-accept-btn-blink {
+  animation: order-accept-blink 1.2s ease-in-out infinite;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Order tooltip styles */
+.order-tooltip-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.order-tooltip-content {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+  white-space: normal;
+  word-wrap: break-word;
+  max-width: 300px;
+  min-width: 250px;
+  z-index: 1000;
+}
+
+/* Default position: above */
+.order-tooltip-content.tooltip-top {
+  bottom: calc(100% + 8px);
+  top: auto;
+}
+
+/* Position: below when not enough space above */
+.order-tooltip-content.tooltip-bottom {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
+/* Show tooltip when hovering over the order card */
+[data-order-id]:hover .order-tooltip-content {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Adjust tooltip position on mobile */
+@media (max-width: 640px) {
+  .order-tooltip-content {
+    left: 0;
+    transform: none;
+    right: 0;
+    max-width: 100%;
+    min-width: auto;
+  }
+  
+  .order-tooltip-content.tooltip-top {
+    bottom: calc(100% + 8px);
+    top: auto;
+  }
+  
+  .order-tooltip-content.tooltip-bottom {
+    top: calc(100% + 8px);
+    bottom: auto;
+  }
+}
