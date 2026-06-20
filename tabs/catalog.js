@@ -1086,7 +1086,7 @@ function flattenProductsWithVariants(list) {
 
 async function loadCatalog() {
   ensureProductOptionsModalInDom();
-  if (window.showSpinner) window.showSpinner('Cargando catálogo...');
+  showSpinner('Cargando catálogo...');
   try {
     const nrd = window.nrd;
     if (!nrd) throw new Error('NRD no disponible');
@@ -1116,7 +1116,7 @@ async function loadCatalog() {
     if (window.showError) await window.showError('Error al cargar catálogo: ' + (e.message || e));
     else alert('Error al cargar catálogo');
   } finally {
-    if (window.hideSpinner) window.hideSpinner();
+    hideSpinner();
   }
 }
 
