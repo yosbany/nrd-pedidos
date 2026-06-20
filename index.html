@@ -10,7 +10,7 @@
   <title>NRD Pedidos</title>
   <link rel="manifest" href="manifest.json">
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="styles.css?v=1781967764071">
+  <link rel="stylesheet" href="styles.css?v=1781979488750">
   <meta name="theme-color" content="#dc2626">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="icon" type="image/svg+xml" href="icon-192.svg">
@@ -1077,7 +1077,7 @@
       var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0';
       var nrdDataAccessSrc = isLocalhost
         ? '/nrd-data-access/dist/nrd-data-access.js'
-        : 'https://datos.nrdonline.site/dist/nrd-data-access.js';
+        : 'https://cdn.jsdelivr.net/gh/yosbany/nrd-data-access@main/dist/nrd-data-access.js';
       var script1 = document.createElement('script');
       script1.src = nrdDataAccessSrc;
       document.head.appendChild(script1);
@@ -1088,7 +1088,7 @@
       var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0';
       var nrdCommonSrc = isLocalhost
         ? '/nrd-common/dist/nrd-common.js'
-        : 'https://common.nrdonline.site/dist/nrd-common.js';
+        : 'https://cdn.jsdelivr.net/gh/yosbany/nrd-common@main/dist/nrd-common.js';
       var script2 = document.createElement('script');
       script2.src = nrdCommonSrc;
       document.head.appendChild(script2);
@@ -1100,7 +1100,7 @@
 
   <!-- Logger (must load before other app scripts) -->
   <script src="logger.js"></script>
-  <script src="modal.js?v=1781967764071"></script>
+  <script src="modal.js?v=1781979488750"></script>
   <script>
     (function(cfg) {
       var start = Date.now();
@@ -1122,11 +1122,11 @@
       }, 100);
     })({ appName: 'NRD Pedidos', legacyNrdAlias: true });
   </script>
-  <script src="tabs/clients.js?v=1781967764071"></script>
-  <script src="tabs/orders.js?v=1781967764071"></script>
-  <script src="tabs/lunch.js?v=1781967764071"></script>
-  <script src="tabs/catalog.js?v=1781967764071"></script>
-  <script src="app.js?v=1781967764071"></script>
+  <script src="tabs/clients.js?v=1781979488750"></script>
+  <script src="tabs/orders.js?v=1781979488750"></script>
+  <script src="tabs/lunch.js?v=1781979488750"></script>
+  <script src="tabs/catalog.js?v=1781979488750"></script>
+  <script src="app.js?v=1781979488750"></script>
 
   <script>
     // Global error handler
@@ -1177,7 +1177,7 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         // Register service worker without version parameter
-        navigator.serviceWorker.register('service-worker.js?v=1781967764071')
+        navigator.serviceWorker.register('service-worker.js?v=1781979488750')
           .then(reg => {
             console.log('Service Worker registered');
             
