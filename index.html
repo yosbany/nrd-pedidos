@@ -69,7 +69,7 @@
   <div id="redirecting-screen" class="min-h-screen flex items-center justify-center bg-white">
     <div class="flex flex-col items-center gap-4">
       <div class="w-12 h-12 border-4 border-gray-200 border-t-red-600 rounded-full animate-spin"></div>
-      <p class="text-sm text-gray-600 font-light">Redirigiendo...</p>
+      <p class="text-sm text-gray-600 font-light" data-auth-status>Redirigiendo...</p>
     </div>
   </div>
 
@@ -1072,29 +1072,56 @@
     </div>
   </div>
 
-  <!-- NRD Data Access Library (incluye Firebase): local en desarrollo, CDN en producción -->
   <script>
-    var _nrdSrc = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0')
-      ? '/nrd-data-access/dist/nrd-data-access.js'
-      : 'https://cdn.jsdelivr.net/gh/yosbany/nrd-data-access@main/dist/nrd-data-access.js';
-    document.write('<script src="' + _nrdSrc + '"><\/script>');
+    (function() {
+      var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0';
+      var nrdDataAccessSrc = isLocalhost
+        ? '/nrd-data-access/dist/nrd-data-access.js'
+        : 'https://cdn.jsdelivr.net/gh/yosbany/nrd-data-access@main/dist/nrd-data-access.js';
+      var script1 = document.createElement('script');
+      script1.src = nrdDataAccessSrc;
+      document.head.appendChild(script1);
+    })();
   </script>
-  
+  <script>
+    (function() {
+      var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '0.0.0.0';
+      var nrdCommonSrc = isLocalhost
+        ? '/nrd-common/dist/nrd-common.js'
+        : 'https://cdn.jsdelivr.net/gh/yosbany/nrd-common@main/dist/nrd-common.js';
+      var script2 = document.createElement('script');
+      script2.src = nrdCommonSrc;
+      document.head.appendChild(script2);
+    })();
+  </script>
+
   <!-- jsPDF for PDF generation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  
+
   <!-- Logger (must load before other app scripts) -->
   <script src="logger.js"></script>
-  
-  <!-- NRD Data Access inicializa Firebase internamente -->
-  <script>
-    window.nrd = new NRDDataAccess();
-    var nrd = window.nrd;
-  </script>
-  
-  <!-- App Scripts -->
   <script src="modal.js?v=1780057172098"></script>
-  <script src="auth.js?v=1780057172098"></script>
+  <script>
+    (function(cfg) {
+      var start = Date.now();
+      var timer = setInterval(function() {
+        if (window.NRDCommon && window.NRDCommon.initializeAppAuth) {
+          clearInterval(timer);
+          window.NRDCommon.initializeAppAuth(cfg);
+        } else if (Date.now() - start > 10000) {
+          clearInterval(timer);
+          if (window.NRDCommon && window.NRDCommon.showLoginFallback) {
+            window.NRDCommon.showLoginFallback();
+          } else {
+            var ls = document.getElementById('login-screen');
+            var rs = document.getElementById('redirecting-screen');
+            if (rs) rs.classList.add('hidden');
+            if (ls) ls.classList.remove('hidden');
+          }
+        }
+      }, 100);
+    })({ appName: 'NRD Pedidos', legacyNrdAlias: true });
+  </script>
   <script src="tabs/clients.js?v=1780057172098"></script>
   <script src="tabs/orders.js?v=1780057172098"></script>
   <script src="tabs/lunch.js?v=1780057172098"></script>

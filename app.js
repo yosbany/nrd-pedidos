@@ -101,18 +101,15 @@ if (soundTestModalBtn && soundTestModal) {
   });
 }
 
-// Initialize app using NRD Data Access
-nrd.auth.onAuthStateChanged((user) => {
-  if (user) {
-    logger.info('User authenticated, initializing app', { uid: user.uid, email: user.email });
-    // Default to orders view (loadOrders registra el listener; sigue activo en otras pestañas)
-    switchView('orders');
-    // Mostrar modal de prueba de sonido para generar la interacción que el navegador exige
-    setTimeout(() => {
-      if (soundTestModal) soundTestModal.classList.remove('hidden');
-    }, 400);
-  } else {
-    logger.debug('User not authenticated, app initialization skipped');
-  }
+(window.NRDCommon?.startApp || function(fn, opts) {
+  window.__nrdStartQueue = window.__nrdStartQueue || [];
+  window.__nrdStartQueue.push({ onReady: fn, options: opts || {} });
+})(function(user) {
+  logger.info('User authenticated, initializing app', { uid: user.uid, email: user.email });
+  switchView('orders');
+  setTimeout(function() {
+    var soundTestModal = document.getElementById('sound-test-modal');
+    if (soundTestModal) soundTestModal.classList.remove('hidden');
+  }, 400);
 });
 
