@@ -1,51 +1,24 @@
 // Main app controller
 
-// Navigation
-let currentView = null;
+const PEDIDOS_VIEWS = ['orders', 'clients', 'lunch', 'catalog'];
 
-function switchView(viewName) {
-  // Prevent duplicate loading
-  if (currentView === viewName) {
-    logger.debug('View already active, skipping', { viewName });
-    return;
-  }
-  
-  logger.info('Switching view', { from: currentView, to: viewName });
-  currentView = viewName;
+let navigationService = null;
 
-  // Hide all views
-  const views = ['orders', 'clients', 'lunch', 'catalog'];
-  views.forEach(view => {
-    const viewElement = document.getElementById(`${view}-view`);
-    if (viewElement) {
-      viewElement.classList.add('hidden');
-    }
-  });
-
-  // Show selected view
-  const selectedView = document.getElementById(`${viewName}-view`);
-  if (selectedView) {
-    selectedView.classList.remove('hidden');
-    logger.debug('View shown', { viewName });
-  } else {
-    logger.warn('View element not found', { viewName });
+function createNavigationService() {
+  if (navigationService) {
+    return navigationService;
   }
 
-  // Update nav buttons
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.classList.remove('border-red-600', 'text-red-600', 'bg-red-50', 'font-medium');
-    btn.classList.add('border-transparent', 'text-gray-600');
-  });
-  const activeBtn = document.querySelector(`[data-view="${viewName}"]`);
-  if (activeBtn) {
-    activeBtn.classList.remove('border-transparent', 'text-gray-600');
-    activeBtn.classList.add('border-red-600', 'text-red-600', 'bg-red-50', 'font-medium');
-  } else {
-    logger.warn('Active nav button not found', { viewName });
+  const NavigationService = window.NRDCommon?.NavigationService;
+  if (!NavigationService) {
+    logger.error('NavigationService not available in NRDCommon');
+    return null;
   }
 
-  // Load data for the view
-  if (viewName === 'orders') {
+  navigationService = new NavigationService(PEDIDOS_VIEWS);
+  window.navigationService = navigationService;
+
+  navigationService.registerView('orders', () => {
     logger.debug('Loading orders view');
     loadOrders();
     const ordersListView = document.getElementById('orders-list-view');
@@ -60,34 +33,40 @@ function switchView(viewName) {
     if (newOrderForm) {
       newOrderForm.classList.add('hidden');
     }
-  } else if (viewName === 'clients') {
+  });
+
+  navigationService.registerView('clients', () => {
     logger.debug('Loading clients view');
     loadClients();
     hideClientForm();
     const clientDetail = document.getElementById('client-detail');
     if (clientDetail) clientDetail.classList.add('hidden');
-  } else if (viewName === 'lunch') {
+  });
+
+  navigationService.registerView('lunch', () => {
     logger.debug('Loading lunch view');
     const main = document.querySelector('main');
     if (main) main.scrollTop = 0;
     if (typeof loadLunch === 'function') loadLunch();
-  } else if (viewName === 'catalog') {
+  });
+
+  navigationService.registerView('catalog', () => {
     logger.debug('Loading catalog view');
     if (typeof loadCatalog === 'function') loadCatalog();
-  }
-  
-  logger.debug('View switched successfully', { viewName });
+  });
+
+  logger.info('NavigationService created and views registered');
+  return navigationService;
 }
 
-// Nav button handlers
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const view = btn.dataset.view;
-    logger.debug('Nav button clicked', { view });
-    switchView(view);
-  });
-});
-logger.debug('Nav button handlers attached');
+function switchView(viewName) {
+  const nav = navigationService || createNavigationService();
+  if (nav) {
+    nav.switchView(viewName);
+    return;
+  }
+  logger.error('Cannot switch view: NavigationService unavailable', { viewName });
+}
 
 // Modal de prueba de sonido al cargar la app (una interacción para desbloquear el audio)
 const soundTestModal = document.getElementById('sound-test-modal');
@@ -106,10 +85,18 @@ if (soundTestModalBtn && soundTestModal) {
   window.__nrdStartQueue.push({ onReady: fn, options: opts || {} });
 })(function(user) {
   logger.info('User authenticated, initializing app', { uid: user.uid, email: user.email });
-  switchView('orders');
+
+  const nav = createNavigationService();
+  if (!nav) {
+    logger.error('Could not create NavigationService');
+    return;
+  }
+
+  nav.setupNavButtons();
+  nav.switchView('orders');
+
   setTimeout(function() {
-    var soundTestModal = document.getElementById('sound-test-modal');
-    if (soundTestModal) soundTestModal.classList.remove('hidden');
+    var modal = document.getElementById('sound-test-modal');
+    if (modal) modal.classList.remove('hidden');
   }, 400);
 });
-
