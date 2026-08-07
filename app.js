@@ -1,6 +1,6 @@
 // Main app controller
 
-const PEDIDOS_VIEWS = ['orders', 'clients', 'lunch', 'catalog'];
+const PEDIDOS_VIEWS = ['orders', 'clients', 'lunch', 'catalog', 'web'];
 
 let navigationService = null;
 
@@ -53,6 +53,11 @@ function createNavigationService() {
   navigationService.registerView('catalog', () => {
     logger.debug('Loading catalog view');
     if (typeof loadCatalog === 'function') loadCatalog();
+  });
+
+  navigationService.registerView('web', () => {
+    logger.debug('Loading web view');
+    if (typeof loadWeb === 'function') loadWeb();
   });
 
   logger.info('NavigationService created and views registered');

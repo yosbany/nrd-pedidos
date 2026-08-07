@@ -111,6 +111,7 @@
       <button class="nav-btn flex-1 px-3 sm:px-4 py-3 sm:py-3.5 border-b-2 border-transparent text-gray-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light" data-view="clients">Clientes</button>
       <button class="nav-btn flex-1 px-3 sm:px-4 py-3 sm:py-3.5 border-b-2 border-transparent text-gray-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light" data-view="lunch">Presupuesto Lunch</button>
       <button class="nav-btn flex-1 px-3 sm:px-4 py-3 sm:py-3.5 border-b-2 border-transparent text-gray-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light" data-view="catalog">Catálogo</button>
+      <button class="nav-btn flex-1 px-3 sm:px-4 py-3 sm:py-3.5 border-b-2 border-transparent text-gray-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light" data-view="web">Web</button>
     </nav>
 
     <main class="flex-1 p-3 sm:p-4 md:p-6 overflow-y-auto max-w-6xl mx-auto w-full">
@@ -1025,6 +1026,135 @@
         </div>
       </div>
 
+      <!-- Web View (contenido editable de nrd-web → Firebase /web) -->
+      <div id="web-view" class="view space-y-4 hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 class="text-lg font-light text-gray-800">Contenido de la web</h2>
+            <p id="web-updated-at" class="text-xs text-gray-500 mt-0.5">—</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="web-seed-btn" class="px-3 py-1.5 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light">Cargar defaults</button>
+            <button type="button" id="web-reload-btn" class="px-3 py-1.5 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-light">Recargar</button>
+            <button type="button" id="web-save-btn" class="px-4 py-1.5 bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 text-sm font-light">Guardar</button>
+          </div>
+        </div>
+
+        <section class="border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <h3 class="text-sm font-medium text-gray-700 uppercase tracking-wider">Banner</h3>
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" id="web-banner-enabled" class="border-gray-300 text-red-600">
+            Mostrar banner
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="sm:col-span-2">
+              <label class="block text-xs text-gray-500 mb-1">Texto</label>
+              <input type="text" id="web-banner-text" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="Ej: Hoy cerrado por feriado">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Tipo</label>
+              <select id="web-banner-type" class="w-full px-3 py-2 border border-gray-300 text-sm bg-white">
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="promo">Promo</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <h3 class="text-sm font-medium text-gray-700 uppercase tracking-wider">Hero</h3>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Eyebrow</label>
+            <input type="text" id="web-hero-eyebrow" class="w-full px-3 py-2 border border-gray-300 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Título</label>
+            <input type="text" id="web-hero-title" class="w-full px-3 py-2 border border-gray-300 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Subtítulo</label>
+            <textarea id="web-hero-subtitle" class="w-full px-3 py-2 border border-gray-300 text-sm" rows="2"></textarea>
+          </div>
+        </section>
+
+        <section class="border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <h3 class="text-sm font-medium text-gray-700 uppercase tracking-wider">Horario y enlaces</h3>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Horario (texto)</label>
+            <input type="text" id="web-hours-display" class="w-full px-3 py-2 border border-gray-300 text-sm">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Catálogo URL</label>
+              <input type="url" id="web-link-catalog" class="w-full px-3 py-2 border border-gray-300 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">PedidosYa URL</label>
+              <input type="url" id="web-link-pedidosya" class="w-full px-3 py-2 border border-gray-300 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Instagram</label>
+              <input type="url" id="web-link-instagram" class="w-full px-3 py-2 border border-gray-300 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Facebook</label>
+              <input type="url" id="web-link-facebook" class="w-full px-3 py-2 border border-gray-300 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">TikTok</label>
+              <input type="url" id="web-link-tiktok" class="w-full px-3 py-2 border border-gray-300 text-sm">
+            </div>
+          </div>
+        </section>
+
+        <section class="border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <h3 class="text-sm font-medium text-gray-700 uppercase tracking-wider">WhatsApp</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">E.164</label>
+              <input type="text" id="web-wa-e164" class="w-full px-3 py-2 border border-gray-300 text-sm" placeholder="+598...">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Display</label>
+              <input type="text" id="web-wa-display" class="w-full px-3 py-2 border border-gray-300 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Mensaje predeterminado</label>
+            <textarea id="web-wa-message" class="w-full px-3 py-2 border border-gray-300 text-sm" rows="2"></textarea>
+          </div>
+        </section>
+
+        <section class="border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm font-medium text-gray-700 uppercase tracking-wider">Productos destacados</h3>
+            <button type="button" id="web-add-product" class="px-3 py-1 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-light">+ Agregar</button>
+          </div>
+          <div id="web-products-list" class="space-y-3"></div>
+        </section>
+
+        <section class="border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm font-medium text-gray-700 uppercase tracking-wider">FAQ</h3>
+            <button type="button" id="web-add-faq" class="px-3 py-1 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-light">+ Agregar</button>
+          </div>
+          <div id="web-faq-list" class="space-y-3"></div>
+        </section>
+
+        <section class="border border-gray-200 bg-gray-50 p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm font-medium text-gray-700 uppercase tracking-wider">Testimonios</h3>
+            <button type="button" id="web-add-testimonial" class="px-3 py-1 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-light">+ Agregar</button>
+          </div>
+          <div id="web-testimonials-list" class="space-y-3"></div>
+        </section>
+
+        <div class="flex justify-end pb-6">
+          <button type="button" id="web-save-btn-bottom" class="px-6 py-2 bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 text-sm font-light">Guardar</button>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -1138,6 +1268,7 @@
   <script src="tabs/orders.js?v=1782043863670"></script>
   <script src="tabs/lunch.js?v=1782043863670"></script>
   <script src="tabs/catalog.js?v=1782043863670"></script>
+  <script src="tabs/web.js?v=1782043863670"></script>
   <script src="app.js?v=1782043863670"></script>
 
   <script>
