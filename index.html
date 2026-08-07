@@ -694,61 +694,58 @@
 
       <!-- Catalog View (gestión catálogo para app cliente) - Arquitectura: Productos | Opcionales, dos columnas -->
       <div id="catalog-view" class="view flex flex-col min-h-0 hidden">
-        <!-- Horario del local: sección colapsable; al colapsar muestra estado actual del catálogo -->
-        <div id="catalog-store-hours-section" class="mb-4 bg-gray-50 border border-gray-200 rounded overflow-hidden">
-          <button type="button" id="catalog-store-hours-toggle" class="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-gray-100 transition-colors">
-            <span class="text-sm font-medium text-gray-700">Horario del local</span>
+        <!-- Administración: horario + medios de pago (un solo guardar) -->
+        <div id="catalog-admin-section" class="mb-4 bg-gray-50 border border-gray-200 rounded overflow-hidden">
+          <button type="button" id="catalog-admin-toggle" class="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-gray-100 transition-colors">
+            <span class="text-sm font-medium text-gray-700">Administración</span>
             <span class="flex-1 min-w-0"></span>
-            <span id="catalog-store-status-badge" class="text-xs font-semibold truncate max-w-[12rem] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 shrink-0">—</span>
-            <svg id="catalog-store-hours-chevron" class="w-4 h-4 text-gray-500 shrink-0 transition-transform rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            <span id="catalog-store-status-badge" class="text-xs font-semibold truncate max-w-[10rem] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 shrink-0">—</span>
+            <span id="catalog-payment-methods-badge" class="text-xs font-semibold truncate max-w-[12rem] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 shrink-0">—</span>
+            <svg id="catalog-admin-chevron" class="w-4 h-4 text-gray-500 shrink-0 transition-transform rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div id="catalog-store-hours-content" class="border-t border-gray-200 px-4 pt-3 pb-4 hidden">
-            <div class="flex flex-wrap items-end gap-4">
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">Apertura</label>
-                <input type="time" id="catalog-store-open-time" class="px-3 py-1.5 border border-gray-300 text-sm" value="08:00">
+          <div id="catalog-admin-content" class="border-t border-gray-200 px-4 pt-3 pb-4 hidden space-y-5">
+            <div>
+              <h4 class="text-xs font-medium text-gray-600 uppercase tracking-wider mb-3">Horario del local</h4>
+              <div class="flex flex-wrap items-end gap-4">
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1">Apertura</label>
+                  <input type="time" id="catalog-store-open-time" class="px-3 py-1.5 border border-gray-300 text-sm" value="08:00">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1">Cierre</label>
+                  <input type="time" id="catalog-store-close-time" class="px-3 py-1.5 border border-gray-300 text-sm" value="20:00">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-600 mb-1">Estado manual</label>
+                  <select id="catalog-store-manual-override" class="px-3 py-1.5 border border-gray-300 text-sm bg-white">
+                    <option value="">Automático (por horario)</option>
+                    <option value="open">Abierto ahora</option>
+                    <option value="closed">Cerrado ahora</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">Cierre</label>
-                <input type="time" id="catalog-store-close-time" class="px-3 py-1.5 border border-gray-300 text-sm" value="20:00">
-              </div>
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">Estado manual</label>
-                <select id="catalog-store-manual-override" class="px-3 py-1.5 border border-gray-300 text-sm bg-white">
-                  <option value="">Automático (por horario)</option>
-                  <option value="open">Abierto ahora</option>
-                  <option value="closed">Cerrado ahora</option>
-                </select>
-              </div>
-              <button type="button" id="catalog-store-hours-save" class="px-4 py-1.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light">Guardar horario</button>
             </div>
-          </div>
-        </div>
-        <!-- Medios de pago del catálogo (habilitar / deshabilitar en checkout) -->
-        <div id="catalog-payment-methods-section" class="mb-4 bg-gray-50 border border-gray-200 rounded overflow-hidden">
-          <button type="button" id="catalog-payment-methods-toggle" class="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-gray-100 transition-colors">
-            <span class="text-sm font-medium text-gray-700">Medios de pago</span>
-            <span class="flex-1 min-w-0"></span>
-            <span id="catalog-payment-methods-badge" class="text-xs font-semibold truncate max-w-[14rem] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 shrink-0">—</span>
-            <svg id="catalog-payment-methods-chevron" class="w-4 h-4 text-gray-500 shrink-0 transition-transform rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div id="catalog-payment-methods-content" class="border-t border-gray-200 px-4 pt-3 pb-4 hidden">
-            <p class="text-xs text-gray-600 mb-3">Activá o desactivá los medios disponibles en el checkout del catálogo (envío a domicilio).</p>
-            <div class="flex flex-wrap gap-4 mb-3">
-              <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
-                <input type="checkbox" id="catalog-pay-efectivo" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
-                Efectivo
-              </label>
-              <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
-                <input type="checkbox" id="catalog-pay-pos" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
-                Tarjeta (POS)
-              </label>
-              <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
-                <input type="checkbox" id="catalog-pay-mercadopago" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
-                Mercado Pago
-              </label>
+            <div>
+              <h4 class="text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">Medios de pago</h4>
+              <p class="text-xs text-gray-600 mb-3">Activá o desactivá los medios disponibles en el checkout del catálogo (envío a domicilio).</p>
+              <div class="flex flex-wrap gap-4">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                  <input type="checkbox" id="catalog-pay-efectivo" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
+                  Efectivo
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                  <input type="checkbox" id="catalog-pay-pos" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
+                  Tarjeta (POS)
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                  <input type="checkbox" id="catalog-pay-mercadopago" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
+                  Mercado Pago
+                </label>
+              </div>
             </div>
-            <button type="button" id="catalog-payment-methods-save" class="px-4 py-1.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light">Guardar medios de pago</button>
+            <div>
+              <button type="button" id="catalog-admin-save" class="px-4 py-1.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light">Guardar</button>
+            </div>
           </div>
         </div>
         <!-- Barra superior: tabs Productos / Opcionales, búsqueda, filtrar -->

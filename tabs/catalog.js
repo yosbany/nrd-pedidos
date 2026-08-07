@@ -1049,9 +1049,6 @@ async function saveStoreHours() {
   catalogConfig.storeCloseTime = (closeEl && closeEl.value) ? closeEl.value.trim() : '20:00';
   const v = (overrideEl && overrideEl.value) ? overrideEl.value.trim().toLowerCase() : '';
   catalogConfig.storeManualOverride = (v === 'open' || v === 'closed') ? v : null;
-  await saveCatalogConfig();
-  if (window.showSuccess) await window.showSuccess('Horario guardado');
-  else alert('Horario guardado');
 }
 
 function normalizePaymentMethods(pm) {
@@ -1068,7 +1065,7 @@ function updatePaymentMethodsBadge() {
   if (!badgeEl) return;
   const pm = normalizePaymentMethods(catalogConfig.paymentMethods);
   const enabled = Object.keys(pm).filter((k) => pm[k]).map((k) => PAYMENT_METHOD_LABELS[k] || k);
-  badgeEl.className = 'text-xs font-semibold truncate max-w-[14rem] px-2 py-0.5 rounded border shrink-0 ';
+  badgeEl.className = 'text-xs font-semibold truncate max-w-[12rem] px-2 py-0.5 rounded border shrink-0 ';
   if (enabled.length === 0) {
     badgeEl.classList.add('bg-red-100', 'text-red-700', 'border-red-300');
     badgeEl.textContent = 'Ninguno activo';
@@ -1089,21 +1086,41 @@ function renderPaymentMethodsPanel() {
   updatePaymentMethodsBadge();
 }
 
-async function savePaymentMethods() {
-  const efectivoEl = document.getElementById('catalog-pay-efectivo');
-  const posEl = document.getElementById('catalog-pay-pos');
-  const mpEl = document.getElementById('catalog-pay-mercadopago');
-  catalogConfig.paymentMethods = {
-    efectivo: !!(efectivoEl && efectivoEl.checked),
-    pos: !!(posEl && posEl.checked),
-    mercadopago: !!(mpEl && mpEl.checked)
+function collectPaymentMethodsFromForm() {
+  return {
+    efectivo: !!document.getElementById('catalog-pay-efectivo')?.checked,
+    pos: !!document.getElementById('catalog-pay-pos')?.checked,
+    mercadopago: !!document.getElementById('catalog-pay-mercadopago')?.checked
   };
-  if (!catalogConfig.paymentMethods.efectivo && !catalogConfig.paymentMethods.pos && !catalogConfig.paymentMethods.mercadopago) {
+}
+
+async function saveCatalogAdmin() {
+  saveStoreHours();
+  const paymentMethods = collectPaymentMethodsFromForm();
+  if (!paymentMethods.efectivo && !paymentMethods.pos && !paymentMethods.mercadopago) {
     if (window.showError) await window.showError('Debés dejar al menos un medio de pago activo');
     else alert('Debés dejar al menos un medio de pago activo');
     renderPaymentMethodsPanel();
     return;
   }
+  catalogConfig.paymentMethods = paymentMethods;
+  await saveCatalogConfig();
+  updateStoreStatusBadge();
+  updatePaymentMethodsBadge();
+  if (window.showSuccess) await window.showSuccess('Administración guardada');
+  else alert('Administración guardada');
+}
+
+async function savePaymentMethods() {
+  // Compat: guarda solo medios (usado si queda algún caller antiguo)
+  const paymentMethods = collectPaymentMethodsFromForm();
+  if (!paymentMethods.efectivo && !paymentMethods.pos && !paymentMethods.mercadopago) {
+    if (window.showError) await window.showError('Debés dejar al menos un medio de pago activo');
+    else alert('Debés dejar al menos un medio de pago activo');
+    renderPaymentMethodsPanel();
+    return;
+  }
+  catalogConfig.paymentMethods = paymentMethods;
   await saveCatalogConfig();
   updatePaymentMethodsBadge();
   if (window.showSuccess) await window.showSuccess('Medios de pago guardados');
@@ -1590,40 +1607,24 @@ function bindCatalogModals() {
   setupCatalogProductChoiceVariantPicker();
   setupCatalogOptionalSearch();
 
-  document.getElementById('catalog-store-hours-save')?.addEventListener('click', () => {
-    saveStoreHours().catch((e) => (window.showError && window.showError(e.message)) || alert('Error: ' + (e.message || e)));
+  document.getElementById('catalog-admin-save')?.addEventListener('click', () => {
+    saveCatalogAdmin().catch((e) => (window.showError && window.showError(e.message)) || alert('Error: ' + (e.message || e)));
   });
 
-  const storeHoursToggle = document.getElementById('catalog-store-hours-toggle');
-  const storeHoursContent = document.getElementById('catalog-store-hours-content');
-  const storeHoursChevron = document.getElementById('catalog-store-hours-chevron');
-  if (storeHoursToggle && storeHoursContent) {
-    storeHoursToggle.addEventListener('click', () => {
-      const isHidden = storeHoursContent.classList.toggle('hidden');
-      if (storeHoursChevron) storeHoursChevron.classList.toggle('rotate-180', isHidden);
+  const adminToggle = document.getElementById('catalog-admin-toggle');
+  const adminContent = document.getElementById('catalog-admin-content');
+  const adminChevron = document.getElementById('catalog-admin-chevron');
+  if (adminToggle && adminContent) {
+    adminToggle.addEventListener('click', () => {
+      const isHidden = adminContent.classList.toggle('hidden');
+      if (adminChevron) adminChevron.classList.toggle('rotate-180', isHidden);
     });
   }
   document.getElementById('catalog-store-manual-override')?.addEventListener('change', updateStoreStatusBadge);
 
-  document.getElementById('catalog-payment-methods-save')?.addEventListener('click', () => {
-    savePaymentMethods().catch((e) => (window.showError && window.showError(e.message)) || alert('Error: ' + (e.message || e)));
-  });
-  const payToggle = document.getElementById('catalog-payment-methods-toggle');
-  const payContent = document.getElementById('catalog-payment-methods-content');
-  const payChevron = document.getElementById('catalog-payment-methods-chevron');
-  if (payToggle && payContent) {
-    payToggle.addEventListener('click', () => {
-      const isHidden = payContent.classList.toggle('hidden');
-      if (payChevron) payChevron.classList.toggle('rotate-180', isHidden);
-    });
-  }
   ['catalog-pay-efectivo', 'catalog-pay-pos', 'catalog-pay-mercadopago'].forEach((id) => {
     document.getElementById(id)?.addEventListener('change', () => {
-      catalogConfig.paymentMethods = {
-        efectivo: !!document.getElementById('catalog-pay-efectivo')?.checked,
-        pos: !!document.getElementById('catalog-pay-pos')?.checked,
-        mercadopago: !!document.getElementById('catalog-pay-mercadopago')?.checked
-      };
+      catalogConfig.paymentMethods = collectPaymentMethodsFromForm();
       updatePaymentMethodsBadge();
     });
   });
