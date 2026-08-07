@@ -123,6 +123,11 @@
               class="w-full sm:w-auto px-4 sm:px-6 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
               Reporte
             </button>
+            <button type="button" id="test-order-sound-btn"
+              class="w-full sm:w-auto px-4 sm:px-6 py-2 border border-gray-300 hover:border-red-600 hover:text-red-600 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light"
+              title="Activa y prueba el aviso de sonido de nuevos pedidos">
+              Probar sonido
+            </button>
             <button id="new-order-btn" 
               class="w-full sm:w-auto px-4 sm:px-6 py-2 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
               Nuevo Pedido
@@ -718,6 +723,33 @@
             </div>
           </div>
         </div>
+        <!-- Medios de pago del catálogo (habilitar / deshabilitar en checkout) -->
+        <div id="catalog-payment-methods-section" class="mb-4 bg-gray-50 border border-gray-200 rounded overflow-hidden">
+          <button type="button" id="catalog-payment-methods-toggle" class="w-full px-4 py-3 flex items-center gap-2 text-left hover:bg-gray-100 transition-colors">
+            <span class="text-sm font-medium text-gray-700">Medios de pago</span>
+            <span class="flex-1 min-w-0"></span>
+            <span id="catalog-payment-methods-badge" class="text-xs font-semibold truncate max-w-[14rem] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 shrink-0">—</span>
+            <svg id="catalog-payment-methods-chevron" class="w-4 h-4 text-gray-500 shrink-0 transition-transform rotate-180" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="catalog-payment-methods-content" class="border-t border-gray-200 px-4 pt-3 pb-4 hidden">
+            <p class="text-xs text-gray-600 mb-3">Activá o desactivá los medios disponibles en el checkout del catálogo (envío a domicilio).</p>
+            <div class="flex flex-wrap gap-4 mb-3">
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                <input type="checkbox" id="catalog-pay-efectivo" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
+                Efectivo
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                <input type="checkbox" id="catalog-pay-pos" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
+                Tarjeta (POS)
+              </label>
+              <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                <input type="checkbox" id="catalog-pay-mercadopago" class="border-gray-300 text-red-600 focus:ring-red-600" checked>
+                Mercado Pago
+              </label>
+            </div>
+            <button type="button" id="catalog-payment-methods-save" class="px-4 py-1.5 bg-red-600 text-white border border-red-600 hover:bg-red-700 text-sm font-light">Guardar medios de pago</button>
+          </div>
+        </div>
         <!-- Barra superior: tabs Productos / Opcionales, búsqueda, filtrar -->
         <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3 mb-3">
           <div class="flex border border-gray-300">
@@ -1016,17 +1048,6 @@
           Cerrar Sesión
         </button>
       </div>
-    </div>
-  </div>
-
-  <!-- Modal prueba de sonido (interacción para desbloquear aviso de nuevos pedidos) -->
-  <div id="sound-test-modal" class="fixed inset-0 bg-black/50 z-[60] hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg max-w-md w-full border border-gray-200 shadow-lg p-4 sm:p-6">
-      <h3 class="text-lg sm:text-xl font-light text-gray-900 mb-2">Prueba de sonido</h3>
-      <p class="text-sm text-gray-600 mb-4">Para que suene el aviso cuando llegue un pedido nuevo, haga clic en el botón. El navegador requiere esta interacción para permitir el sonido.</p>
-      <button type="button" id="sound-test-modal-btn" class="w-full py-3 px-4 bg-red-600 text-white border border-red-600 hover:bg-red-700 transition-colors uppercase tracking-wider text-xs sm:text-sm font-light">
-        Probar sonido
-      </button>
     </div>
   </div>
 

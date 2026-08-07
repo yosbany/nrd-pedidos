@@ -139,11 +139,13 @@ async function loadLunchProducts() {
       if (item.active === false) continue;
       if (!hasLunchTag(item)) continue;
       const id = item.variantId ? `${item.productId}_${item.variantId}` : (item.id || item.productId);
-      const productName = item.productName || item.name;
-      const variantLabel = item.name && item.name !== productName ? item.name : (item.variantId || item.sku || '');
-      const name = item.variantId
-        ? (variantLabel ? `${productName} - ${variantLabel}` : productName)
-        : (item.name || productName);
+      // La API (withVariants) ya entrega name = "Padre - Variante"; no volver a concatenar.
+      const parent = String(item.productName || '').trim();
+      const rawName = String(item.name || '').trim();
+      let name = rawName || parent;
+      if (item.variantId && parent && rawName && rawName !== parent && !rawName.startsWith(parent + ' - ')) {
+        name = parent + ' - ' + rawName;
+      }
       result.push({
         id,
         name,

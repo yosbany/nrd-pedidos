@@ -68,15 +68,13 @@ function switchView(viewName) {
   logger.error('Cannot switch view: NavigationService unavailable', { viewName });
 }
 
-// Modal de prueba de sonido al cargar la app (una interacción para desbloquear el audio)
-const soundTestModal = document.getElementById('sound-test-modal');
-const soundTestModalBtn = document.getElementById('sound-test-modal-btn');
-if (soundTestModalBtn && soundTestModal) {
-  soundTestModalBtn.addEventListener('click', () => {
+// Botón "Probar sonido" (desbloquea audio del navegador y reproduce una prueba)
+const testOrderSoundBtn = document.getElementById('test-order-sound-btn');
+if (testOrderSoundBtn) {
+  testOrderSoundBtn.addEventListener('click', () => {
     if (typeof window.activateAndTestOrderSound === 'function') {
       window.activateAndTestOrderSound();
     }
-    soundTestModal.classList.add('hidden');
   });
 }
 
@@ -94,9 +92,4 @@ if (soundTestModalBtn && soundTestModal) {
 
   nav.setupNavButtons();
   nav.switchView('orders');
-
-  setTimeout(function() {
-    var modal = document.getElementById('sound-test-modal');
-    if (modal) modal.classList.remove('hidden');
-  }, 400);
 });

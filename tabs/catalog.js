@@ -9,16 +9,29 @@
  * - optionsCatalog: definiciones de grupos de opcionales (label, choices); los productos referencian grupos por optionId.
  */
 
+const DEFAULT_PAYMENT_METHODS = {
+  efectivo: true,
+  pos: true,
+  mercadopago: true
+};
+
+const PAYMENT_METHOD_LABELS = {
+  efectivo: 'Efectivo',
+  pos: 'Tarjeta',
+  mercadopago: 'Mercado Pago'
+};
+
 const DEFAULT_CONFIG = {
   products: {},
   categories: [{ id: 'todos', name: 'Todos' }],
   optionsCatalog: {},
   storeOpenTime: '08:00',
   storeCloseTime: '20:00',
-  storeManualOverride: null
+  storeManualOverride: null,
+  paymentMethods: { ...DEFAULT_PAYMENT_METHODS }
 };
 
-let catalogConfig = { ...DEFAULT_CONFIG };
+let catalogConfig = { ...DEFAULT_CONFIG, paymentMethods: { ...DEFAULT_PAYMENT_METHODS } };
 /** Lista de productos/variantes del sistema: { sku, productId, variantId, name, price } */
 let allProducts = [];
 let selectedSectionId = 'todos';
@@ -41,26 +54,37 @@ const ICON_PENCIL = '<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" vie
 async function loadCatalogConfig() {
   try {
     if (!window.nrd || !window.nrd.catalogConfig) {
-      catalogConfig = { ...DEFAULT_CONFIG };
+      catalogConfig = { ...DEFAULT_CONFIG, paymentMethods: { ...DEFAULT_PAYMENT_METHODS } };
       return catalogConfig;
     }
     const data = await window.nrd.catalogConfig.get();
     if (data) {
+      const pm = data.paymentMethods && typeof data.paymentMethods === 'object' ? data.paymentMethods : {};
       catalogConfig = {
         products: data.products || {},
         categories: Array.isArray(data.categories) && data.categories.length > 0 ? data.categories : DEFAULT_CONFIG.categories,
         optionsCatalog: data.optionsCatalog || {},
         storeOpenTime: data.storeOpenTime != null ? String(data.storeOpenTime).trim() : DEFAULT_CONFIG.storeOpenTime,
         storeCloseTime: data.storeCloseTime != null ? String(data.storeCloseTime).trim() : DEFAULT_CONFIG.storeCloseTime,
-        storeManualOverride: data.storeManualOverride === 'open' || data.storeManualOverride === 'closed' ? data.storeManualOverride : null
+        storeManualOverride: data.storeManualOverride === 'open' || data.storeManualOverride === 'closed' ? data.storeManualOverride : null,
+        paymentMethods: {
+          efectivo: pm.efectivo !== false,
+          pos: pm.pos !== false,
+          mercadopago: pm.mercadopago !== false
+        },
+        shippingCost: data.shippingCost,
+        minimumForShipping: data.minimumForShipping,
+        estimatedMinutes: data.estimatedMinutes,
+        brandName: data.brandName,
+        tagline: data.tagline
       };
     } else {
-      catalogConfig = { ...DEFAULT_CONFIG };
+      catalogConfig = { ...DEFAULT_CONFIG, paymentMethods: { ...DEFAULT_PAYMENT_METHODS } };
     }
     return catalogConfig;
   } catch (e) {
     (window.logger || console).warn('Error loading catalog config', e);
-    catalogConfig = { ...DEFAULT_CONFIG };
+    catalogConfig = { ...DEFAULT_CONFIG, paymentMethods: { ...DEFAULT_PAYMENT_METHODS } };
     return catalogConfig;
   }
 }
@@ -84,7 +108,13 @@ async function saveCatalogConfig() {
     optionsCatalog: catalogConfig.optionsCatalog,
     storeOpenTime: catalogConfig.storeOpenTime,
     storeCloseTime: catalogConfig.storeCloseTime,
-    storeManualOverride: catalogConfig.storeManualOverride
+    storeManualOverride: catalogConfig.storeManualOverride,
+    paymentMethods: catalogConfig.paymentMethods || { ...DEFAULT_PAYMENT_METHODS },
+    shippingCost: catalogConfig.shippingCost,
+    minimumForShipping: catalogConfig.minimumForShipping,
+    estimatedMinutes: catalogConfig.estimatedMinutes,
+    brandName: catalogConfig.brandName,
+    tagline: catalogConfig.tagline
   });
   await window.nrd.catalogConfig.set(payload);
   (window.logger || console).debug('Catalog config saved');
@@ -1024,6 +1054,62 @@ async function saveStoreHours() {
   else alert('Horario guardado');
 }
 
+function normalizePaymentMethods(pm) {
+  const src = pm && typeof pm === 'object' ? pm : {};
+  return {
+    efectivo: src.efectivo !== false,
+    pos: src.pos !== false,
+    mercadopago: src.mercadopago !== false
+  };
+}
+
+function updatePaymentMethodsBadge() {
+  const badgeEl = document.getElementById('catalog-payment-methods-badge');
+  if (!badgeEl) return;
+  const pm = normalizePaymentMethods(catalogConfig.paymentMethods);
+  const enabled = Object.keys(pm).filter((k) => pm[k]).map((k) => PAYMENT_METHOD_LABELS[k] || k);
+  badgeEl.className = 'text-xs font-semibold truncate max-w-[14rem] px-2 py-0.5 rounded border shrink-0 ';
+  if (enabled.length === 0) {
+    badgeEl.classList.add('bg-red-100', 'text-red-700', 'border-red-300');
+    badgeEl.textContent = 'Ninguno activo';
+  } else {
+    badgeEl.classList.add('bg-green-100', 'text-green-700', 'border-green-300');
+    badgeEl.textContent = enabled.join(' · ');
+  }
+}
+
+function renderPaymentMethodsPanel() {
+  const pm = normalizePaymentMethods(catalogConfig.paymentMethods);
+  const efectivoEl = document.getElementById('catalog-pay-efectivo');
+  const posEl = document.getElementById('catalog-pay-pos');
+  const mpEl = document.getElementById('catalog-pay-mercadopago');
+  if (efectivoEl) efectivoEl.checked = !!pm.efectivo;
+  if (posEl) posEl.checked = !!pm.pos;
+  if (mpEl) mpEl.checked = !!pm.mercadopago;
+  updatePaymentMethodsBadge();
+}
+
+async function savePaymentMethods() {
+  const efectivoEl = document.getElementById('catalog-pay-efectivo');
+  const posEl = document.getElementById('catalog-pay-pos');
+  const mpEl = document.getElementById('catalog-pay-mercadopago');
+  catalogConfig.paymentMethods = {
+    efectivo: !!(efectivoEl && efectivoEl.checked),
+    pos: !!(posEl && posEl.checked),
+    mercadopago: !!(mpEl && mpEl.checked)
+  };
+  if (!catalogConfig.paymentMethods.efectivo && !catalogConfig.paymentMethods.pos && !catalogConfig.paymentMethods.mercadopago) {
+    if (window.showError) await window.showError('Debés dejar al menos un medio de pago activo');
+    else alert('Debés dejar al menos un medio de pago activo');
+    renderPaymentMethodsPanel();
+    return;
+  }
+  await saveCatalogConfig();
+  updatePaymentMethodsBadge();
+  if (window.showSuccess) await window.showSuccess('Medios de pago guardados');
+  else alert('Medios de pago guardados');
+}
+
 // ——— Carga allProducts: API flat: true; si no, aplanar localmente para listar padre + cada variante ———
 
 function getVariantsArrayFromProduct(p) {
@@ -1111,6 +1197,7 @@ async function loadCatalog() {
     selectedOptionGroupId = Object.keys(catalogConfig.optionsCatalog || {})[0] || null;
     switchCatalogSub('products');
     renderStoreHoursPanel();
+    renderPaymentMethodsPanel();
   } catch (e) {
     (window.logger || console).error('Error loading catalog', e);
     if (window.showError) await window.showError('Error al cargar catálogo: ' + (e.message || e));
@@ -1517,6 +1604,29 @@ function bindCatalogModals() {
     });
   }
   document.getElementById('catalog-store-manual-override')?.addEventListener('change', updateStoreStatusBadge);
+
+  document.getElementById('catalog-payment-methods-save')?.addEventListener('click', () => {
+    savePaymentMethods().catch((e) => (window.showError && window.showError(e.message)) || alert('Error: ' + (e.message || e)));
+  });
+  const payToggle = document.getElementById('catalog-payment-methods-toggle');
+  const payContent = document.getElementById('catalog-payment-methods-content');
+  const payChevron = document.getElementById('catalog-payment-methods-chevron');
+  if (payToggle && payContent) {
+    payToggle.addEventListener('click', () => {
+      const isHidden = payContent.classList.toggle('hidden');
+      if (payChevron) payChevron.classList.toggle('rotate-180', isHidden);
+    });
+  }
+  ['catalog-pay-efectivo', 'catalog-pay-pos', 'catalog-pay-mercadopago'].forEach((id) => {
+    document.getElementById(id)?.addEventListener('change', () => {
+      catalogConfig.paymentMethods = {
+        efectivo: !!document.getElementById('catalog-pay-efectivo')?.checked,
+        pos: !!document.getElementById('catalog-pay-pos')?.checked,
+        mercadopago: !!document.getElementById('catalog-pay-mercadopago')?.checked
+      };
+      updatePaymentMethodsBadge();
+    });
+  });
 
   function getImageFormEls() {
     return {

@@ -243,7 +243,7 @@ function getOrderBeepUri() {
   return ORDER_BEEP_DATA_URI;
 }
 
-/** Activa el audio y reproduce el sonido de prueba (para el modal de prueba de sonido al cargar la app). */
+/** Activa el audio y reproduce el sonido de prueba (botón "Probar sonido"). */
 window.activateAndTestOrderSound = function () {
   unlockOrderSound();
   primeOrderSoundAudio();
@@ -1226,9 +1226,13 @@ async function loadProductsForOrder() {
       if (item.active === false || item.esVendible !== true) continue;
       
       const id = item.variantId ? `${item.productId}_${item.variantId}` : (item.id || item.productId);
-      const productName = item.productName || item.name;
-      const variantLabel = item.name && item.name !== productName ? item.name : (item.variantId || item.sku || '');
-      const name = item.variantId ? (variantLabel ? `${productName} - ${variantLabel}` : productName) : (item.name || productName);
+      // La API (withVariants) ya entrega name = "Padre - Variante"; no volver a concatenar.
+      const parent = String(item.productName || '').trim();
+      const rawName = String(item.name || '').trim();
+      let name = rawName || parent;
+      if (item.variantId && parent && rawName && rawName !== parent && !rawName.startsWith(parent + ' - ')) {
+        name = parent + ' - ' + rawName;
+      }
       result.push({
         id,
         name,
