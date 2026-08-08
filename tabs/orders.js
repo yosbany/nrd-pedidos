@@ -182,8 +182,11 @@ function setupOrderSoundUnlock() {
   document.addEventListener('keydown', unlock, { once: true });
 }
 
-// Fallback: Audio HTML con data URI (beep corto). Se priman en el clic del usuario y se reutiliza al llegar un pedido.
+// Fallback: Audio HTML con data URI (beep). Se prima en el clic del usuario y se reutiliza en loop hasta aceptar.
 let orderSoundAudioEl = null;
+let pendingAlarmActive = false;
+let pendingAlarmWebAudioTimerId = null;
+const PENDING_ALARM_WEB_AUDIO_MS = 1000; // ~duración del arpegio; solo fallback sin Audio element
 
 /** Arpegio alegre (C6-E6-G6-C7) como WAV, bien alto. Misma melodía de antes, ~0,9 s. */
 function getOrderBeepDataUri() {
@@ -247,7 +250,7 @@ function getOrderBeepUri() {
 window.activateAndTestOrderSound = function () {
   unlockOrderSound();
   primeOrderSoundAudio();
-  playNewOrderSound();
+  playNewOrderSoundOnce();
 };
 
 /** Crea el elemento Audio con el beep y lo reproduce una vez (en gesto del usuario) para poder reutilizarlo. */
@@ -256,6 +259,7 @@ function primeOrderSoundAudio() {
   try {
     orderSoundAudioEl = new Audio(getOrderBeepUri());
     orderSoundAudioEl.volume = 1;
+    orderSoundAudioEl.loop = false;
     orderSoundAudioEl.play().then(() => {}).catch(function (e) {
       (window.logger || console).warn('Order sound prime play failed', e);
     });
@@ -265,22 +269,9 @@ function primeOrderSoundAudio() {
   }
 }
 
-// Melodía corta cuando hay pedidos pendientes (arpegio ascendente suave)
-function playNewOrderSound() {
+/** Una pasada del arpegio (Web Audio). */
+function playNewOrderSoundWebAudio() {
   const log = window.logger || console;
-  if (orderSoundAudioEl) {
-    try {
-      orderSoundAudioEl.volume = 1;
-      orderSoundAudioEl.currentTime = 0;
-      orderSoundAudioEl.play().then(function () {
-        log.debug('New order sound played (audio element)');
-      }).catch(function (e) {
-        log.warn('New order sound (audio element) play failed', e);
-      });
-    } catch (e) {
-      log.warn('New order sound (audio element) error', e);
-    }
-  }
   try {
     const ctx = orderSoundContext || new (window.AudioContext || window.webkitAudioContext)();
     if (!orderSoundContext) orderSoundContext = ctx;
@@ -288,6 +279,7 @@ function playNewOrderSound() {
     const run = () => {
       try {
         if (ctx.state === 'closed') return;
+        const t0 = ctx.currentTime;
         const note = (freq, start, duration) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -295,11 +287,11 @@ function playNewOrderSound() {
           gain.connect(ctx.destination);
           osc.frequency.value = freq;
           osc.type = 'sine';
-          gain.gain.setValueAtTime(0, start);
-          gain.gain.linearRampToValueAtTime(0.5, start + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.01, start + duration);
-          osc.start(start);
-          osc.stop(start + duration);
+          gain.gain.setValueAtTime(0, t0 + start);
+          gain.gain.linearRampToValueAtTime(0.5, t0 + start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.01, t0 + start + duration);
+          osc.start(t0 + start);
+          osc.stop(t0 + start + duration);
         };
         const beat = 0.2;
         const len = 0.16;
@@ -307,7 +299,6 @@ function playNewOrderSound() {
         note(1319, beat, len);
         note(1568, beat * 2, len);
         note(2093, beat * 3, len * 1.2);
-        log.debug('New order sound played (Web Audio)');
       } catch (err) {
         log.warn('New order sound run failed', err);
       }
@@ -317,6 +308,94 @@ function playNewOrderSound() {
   } catch (e) {
     (window.logger || console).warn('Could not play new order sound', e);
   }
+}
+
+/** Una reproducción (prueba / refuerzo). No inicia el loop de alarma. */
+function playNewOrderSoundOnce() {
+  const log = window.logger || console;
+  if (orderSoundAudioEl && !pendingAlarmActive) {
+    try {
+      orderSoundAudioEl.loop = false;
+      orderSoundAudioEl.volume = 1;
+      orderSoundAudioEl.currentTime = 0;
+      orderSoundAudioEl.play().then(function () {
+        log.debug('New order sound played (audio element)');
+      }).catch(function (e) {
+        log.warn('New order sound (audio element) play failed', e);
+        playNewOrderSoundWebAudio();
+      });
+      return;
+    } catch (e) {
+      log.warn('New order sound (audio element) error', e);
+    }
+  }
+  playNewOrderSoundWebAudio();
+}
+
+/** Compat: llamadas existentes siguen funcionando. */
+function playNewOrderSound() {
+  if (pendingAlarmActive) return;
+  playNewOrderSoundOnce();
+}
+
+/**
+ * Alarma continua mientras haya pedidos Pendiente.
+ * Usa Audio.loop si está primado; si no, repite Web Audio cada ~1 s.
+ */
+function startPendingOrderAlarm() {
+  const log = window.logger || console;
+  if (pendingAlarmActive) return;
+  pendingAlarmActive = true;
+
+  if (orderSoundAudioEl) {
+    try {
+      orderSoundAudioEl.loop = true;
+      orderSoundAudioEl.volume = 1;
+      orderSoundAudioEl.currentTime = 0;
+      orderSoundAudioEl.play().then(function () {
+        log.debug('Pending orders alarm started (audio loop)');
+      }).catch(function (e) {
+        log.warn('Pending alarm audio loop failed, falling back to Web Audio', e);
+        if (!pendingAlarmWebAudioTimerId) {
+          playNewOrderSoundWebAudio();
+          pendingAlarmWebAudioTimerId = setInterval(playNewOrderSoundWebAudio, PENDING_ALARM_WEB_AUDIO_MS);
+        }
+      });
+      return;
+    } catch (e) {
+      log.warn('Pending alarm audio error', e);
+    }
+  }
+
+  playNewOrderSoundWebAudio();
+  if (!pendingAlarmWebAudioTimerId) {
+    pendingAlarmWebAudioTimerId = setInterval(playNewOrderSoundWebAudio, PENDING_ALARM_WEB_AUDIO_MS);
+    log.debug('Pending orders alarm started (Web Audio interval)');
+  }
+}
+
+/** Detiene la alarma (cuando ya no hay pedidos Pendiente). */
+function stopPendingOrderAlarm() {
+  if (!pendingAlarmActive && !pendingAlarmIntervalId && !pendingAlarmWebAudioTimerId) {
+    return;
+  }
+  pendingAlarmActive = false;
+  if (orderSoundAudioEl) {
+    try {
+      orderSoundAudioEl.loop = false;
+      orderSoundAudioEl.pause();
+      orderSoundAudioEl.currentTime = 0;
+    } catch (e) { /* ignore */ }
+  }
+  if (pendingAlarmWebAudioTimerId) {
+    clearInterval(pendingAlarmWebAudioTimerId);
+    pendingAlarmWebAudioTimerId = null;
+  }
+  if (pendingAlarmIntervalId) {
+    clearInterval(pendingAlarmIntervalId);
+    pendingAlarmIntervalId = null;
+  }
+  (window.logger || console).debug('Pending orders alarm stopped');
 }
 
 let orderSoundUnlockSetup = false;
@@ -385,10 +464,7 @@ function loadOrders() {
 
     if (Object.keys(ordersDict).length === 0) {
       previousOrderIds = new Set();
-      if (pendingAlarmIntervalId) {
-        clearInterval(pendingAlarmIntervalId);
-        pendingAlarmIntervalId = null;
-      }
+      stopPendingOrderAlarm();
       const emptyMsg = '<p class="text-center text-gray-600 py-6 sm:py-8 text-sm sm:text-base">No hay pedidos registrados</p>';
       if (useSingleList) {
         ordersListPending.innerHTML = emptyMsg;
@@ -404,24 +480,24 @@ function loadOrders() {
       ? [...currentOrderIds].filter((id) => !previousOrderIds.has(id) && !alreadyPlayedForOrderIds.has(id))
       : [];
 
-    const pendingCount = Object.values(ordersDict).filter((o) => (o.status || 'Pendiente') === 'Pendiente').length;
+    // Alarma continua mientras haya pedidos Pendiente accionables (no programados).
+    // Se corta al aceptar o rechazar todos los de la cola activa.
+    const pendingCount = Object.values(ordersDict).filter((o) => {
+      if ((o.status || 'Pendiente') !== 'Pendiente') return false;
+      if (isOrderScheduled(o)) return false;
+      return true;
+    }).length;
     if (pendingCount > 0) {
-      if (!pendingAlarmIntervalId) {
-        setTimeout(() => playNewOrderSound(), 0);
-        pendingAlarmIntervalId = setInterval(() => playNewOrderSound(), 2500);
-        logger.debug('Pending orders alarm started', { pendingCount });
-      }
+      startPendingOrderAlarm();
     } else {
-      if (pendingAlarmIntervalId) {
-        clearInterval(pendingAlarmIntervalId);
-        pendingAlarmIntervalId = null;
-        logger.debug('Pending orders alarm stopped');
-      }
+      stopPendingOrderAlarm();
     }
 
     if (notYetPlayed.length > 0) {
-      setTimeout(() => playNewOrderSound(), 0);
       notYetPlayed.forEach((id) => alreadyPlayedForOrderIds.add(id));
+      if (!pendingAlarmActive) {
+        setTimeout(() => playNewOrderSoundOnce(), 0);
+      }
     }
     previousOrderIds = currentOrderIds;
 
@@ -516,10 +592,14 @@ function loadOrders() {
 
       // Sonido cuando un pedido programado pasa a pendientes (faltan ≤30 min para retiro)
       const currentScheduledIds = new Set(scheduledOrders.map(([id]) => id));
-      pendingOrders.forEach(([id]) => {
+      pendingOrders.forEach(([id, order]) => {
         if (lastScheduledOrderIds.has(id) && !currentScheduledIds.has(id) && !activatedFromScheduledIds.has(id)) {
           activatedFromScheduledIds.add(id);
-          playNewOrderSound();
+          if ((order.status || 'Pendiente') === 'Pendiente') {
+            startPendingOrderAlarm();
+          } else {
+            playNewOrderSound();
+          }
         }
       });
       lastScheduledOrderIds = currentScheduledIds;
@@ -2637,7 +2717,11 @@ async function performRejectOrder(orderId, reason) {
     const existingNotes = (order && order.notes) ? String(order.notes).trim() : '';
     const rejectionNote = 'Rechazado. Motivo: ' + (reason || 'Otro');
     const newNotes = existingNotes ? existingNotes + '\n' + rejectionNote : rejectionNote;
-    await nrd.orders.update(orderId, { status: 'Rechazado', notes: newNotes });
+    await nrd.orders.update(orderId, {
+      status: 'Rechazado',
+      notes: newNotes,
+      rejectReason: reason || 'Otro'
+    });
     hideSpinner();
     await showSuccess('Pedido rechazado');
     loadOrders();
