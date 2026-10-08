@@ -120,6 +120,30 @@ function hasLunchTag(item) {
 }
 
 /**
+ * Load fallback lunch products from LUNCH_OFFERS templates (when no real products exist).
+ */
+function loadFallbackLunchProducts() {
+  if (lunchProducts.length > 0) return;
+  const productSet = new Set();
+  for (const personas of Object.keys(LUNCH_OFFERS)) {
+    const items = LUNCH_OFFERS[personas];
+    if (Array.isArray(items)) {
+      items.forEach(item => {
+        if (item.productName && !productSet.has(item.productName)) {
+          productSet.add(item.productName);
+          lunchProducts.push({
+            id: 'fallback_' + productSet.size,
+            name: item.productName,
+            price: 0
+          });
+        }
+      });
+    }
+  }
+  logger.debug('Loaded fallback lunch products', { count: lunchProducts.length });
+}
+
+/**
  * Load products with tag LUNCH (from base products + variants).
  */
 async function loadLunchProducts() {
@@ -246,11 +270,14 @@ function renderLunchTable() {
 
   tbody.innerHTML = '';
   if (lunchProducts.length === 0) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td colspan="4" class="border border-gray-300 px-3 py-4 text-center text-gray-600">No hay productos con etiqueta LUNCH. Agregue la etiqueta "LUNCH" a los productos en la gestión de productos.</td>';
-    tbody.appendChild(tr);
-    updateLunchTotals();
-    return;
+    loadFallbackLunchProducts();
+    if (lunchProducts.length === 0) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="4" class="border border-gray-300 px-3 py-4 text-center text-gray-600">No hay productos con etiqueta LUNCH. Agregue la etiqueta "LUNCH" a los productos en la gestión de productos.</td>';
+      tbody.appendChild(tr);
+      updateLunchTotals();
+      return;
+    }
   }
 
   lunchProducts.forEach(p => {

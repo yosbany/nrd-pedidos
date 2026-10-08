@@ -135,6 +135,7 @@ function switchCatalogSub(sub) {
   }
   if (sub === 'products') renderProductsPanel();
   else if (sub === 'options') renderOptionsPanel();
+  else if (sub === 'categories') renderCategoriesPanel();
 }
 
 // ——— Productos: secciones (izq) y lista por categoría (der) ———
@@ -1706,9 +1707,113 @@ function bindCatalogModals() {
   }
 }
 
+// ——— Categorías: gestión de secciones ———
+
+function renderCategoriesPanel() {
+  const list = document.getElementById('catalog-categories-list');
+  if (!list) return;
+  const categories = catalogConfig.categories || [];
+  const products = catalogConfig.products || {};
+  list.innerHTML = '';
+
+  categories.forEach((cat) => {
+    const count = cat.id === 'todos'
+      ? Object.keys(products).length
+      : Object.values(products).filter((p) => p.category === cat.id).length;
+    const isTodos = cat.id === 'todos';
+    const canDelete = !isTodos && count === 0;
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center justify-between gap-2 p-3 border border-gray-200 bg-white rounded text-sm';
+    row.innerHTML = `
+      <div class="flex-1 min-w-0">
+        <div class="font-light text-gray-800 truncate">${escapeHtml(cat.name)}</div>
+        <div class="text-xs text-gray-500">${count} producto${count !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="flex gap-1 shrink-0">
+        <button type="button" class="edit-category-btn px-2 py-1 text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-300 rounded text-xs" title="Editar">✎</button>
+        <button type="button" class="delete-category-btn px-2 py-1 text-red-600 hover:text-red-700 border border-gray-200 hover:border-red-300 rounded text-xs ${!canDelete ? 'opacity-50 cursor-not-allowed' : ''}" title="${canDelete ? 'Eliminar' : 'No se puede eliminar: tiene productos'}" ${!canDelete ? 'disabled' : ''}>✕</button>
+      </div>
+    `;
+
+    const editBtn = row.querySelector('.edit-category-btn');
+    if (editBtn) {
+      editBtn.addEventListener('click', () => editCategoryName(cat.id, cat.name));
+    }
+
+    const deleteBtn = row.querySelector('.delete-category-btn');
+    if (deleteBtn && canDelete) {
+      deleteBtn.addEventListener('click', () => deleteCategoryConfirm(cat.id, cat.name));
+    }
+
+    list.appendChild(row);
+  });
+}
+
+async function editCategoryName(categoryId, currentName) {
+  const isTodos = categoryId === 'todos';
+  if (isTodos) {
+    (window.showError || alert)('No se puede editar la categoría "Todos".');
+    return;
+  }
+
+  const newName = typeof window.showPrompt === 'function'
+    ? await window.showPrompt('Editar Categoría', 'Nuevo nombre:', currentName || '', 'Aceptar', 'Cancelar')
+    : (window.prompt ? window.prompt('Nuevo nombre:', currentName || '') : '');
+  const trimmed = (newName || '').trim();
+  if (!trimmed || trimmed === (currentName || '').trim()) return;
+
+  const cat = (catalogConfig.categories || []).find((c) => c.id === categoryId);
+  if (cat) {
+    cat.name = trimmed;
+    await saveCatalogConfig();
+    renderCategoriesPanel();
+    renderSectionsList();
+  }
+}
+
+function deleteCategoryConfirm(categoryId, categoryName) {
+  const isTodos = categoryId === 'todos';
+  if (isTodos) return;
+
+  const msg = `¿Eliminar la categoría "${escapeHtml(categoryName)}"?`;
+  if (typeof window.showConfirm === 'function') {
+    window.showConfirm(msg, 'Eliminar', 'Cancelar', () => deleteCategory(categoryId));
+  } else if (window.confirm) {
+    if (window.confirm(msg)) deleteCategory(categoryId);
+  }
+}
+
+async function deleteCategory(categoryId) {
+  if (categoryId === 'todos') return;
+  catalogConfig.categories = (catalogConfig.categories || []).filter((c) => c.id !== categoryId);
+  await saveCatalogConfig();
+  renderCategoriesPanel();
+  renderSectionsList();
+}
+
+async function addNewCategory() {
+  const name = typeof window.showPrompt === 'function'
+    ? await window.showPrompt('Nueva Categoría', 'Nombre de la categoría:', '', 'Agregar', 'Cancelar')
+    : (window.prompt ? window.prompt('Nombre de la categoría:') : '');
+  const trimmed = (name || '').trim();
+  if (!trimmed) return;
+
+  const id = 'cat_' + Date.now();
+  catalogConfig.categories = [...(catalogConfig.categories || []), { id, name: trimmed }];
+  await saveCatalogConfig();
+  renderCategoriesPanel();
+  renderSectionsList();
+}
+
 document.querySelectorAll('.catalog-sub-nav').forEach((btn) => {
   btn.addEventListener('click', () => switchCatalogSub(btn.dataset.sub));
 });
+
+const addCategoryBtn = document.getElementById('catalog-add-category-btn');
+if (addCategoryBtn) {
+  addCategoryBtn.addEventListener('click', addNewCategory);
+}
 
 const catalogSearchEl = document.getElementById('catalog-search');
 if (catalogSearchEl) {

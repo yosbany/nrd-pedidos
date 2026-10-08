@@ -748,11 +748,12 @@
             </div>
           </div>
         </div>
-        <!-- Barra superior: tabs Productos / Opcionales, búsqueda, filtrar -->
+        <!-- Barra superior: tabs Productos / Opcionales / Categorías, búsqueda, filtrar -->
         <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3 mb-3">
           <div class="flex border border-gray-300">
             <button type="button" class="catalog-sub-nav px-4 py-2 text-sm font-light border-r border-gray-300 bg-red-600 text-white" data-sub="products">Productos</button>
-            <button type="button" class="catalog-sub-nav px-4 py-2 text-sm font-light text-gray-600 hover:bg-gray-100 border-l border-gray-300" data-sub="options">Opcionales</button>
+            <button type="button" class="catalog-sub-nav px-4 py-2 text-sm font-light text-gray-600 hover:bg-gray-100 border-r border-gray-300 border-l border-gray-300" data-sub="options">Opcionales</button>
+            <button type="button" class="catalog-sub-nav px-4 py-2 text-sm font-light text-gray-600 hover:bg-gray-100 border-l border-gray-300" data-sub="categories">Categorías</button>
           </div>
           <div class="flex-1 flex items-center min-w-0">
             <input type="text" id="catalog-search" class="flex-1 min-w-0 px-3 py-1.5 border border-gray-300 text-sm" placeholder="Buscar...">
@@ -802,6 +803,17 @@
             <div id="catalog-option-group-products" class="text-sm text-gray-600 mb-2 flex items-center gap-1"></div>
             <div id="catalog-options-list" class="flex-1 overflow-y-auto space-y-2"></div>
           </div>
+        </div>
+
+        <!-- Panel Categorías: gestión de categorías/secciones -->
+        <div id="catalog-sub-categories" class="catalog-sub-panel hidden flex-1 flex min-h-0 flex-col">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h3 class="text-lg font-light text-gray-800">Gestión de Categorías</h3>
+            <button type="button" id="catalog-add-category-btn" class="px-3 py-1.5 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-light flex items-center gap-1">
+              <span>+</span> Agregar Categoría
+            </button>
+          </div>
+          <div id="catalog-categories-list" class="flex-1 overflow-y-auto space-y-2"></div>
         </div>
 
       </div>
